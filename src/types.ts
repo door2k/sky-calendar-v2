@@ -1,0 +1,61 @@
+export type Lang = "en" | "he";
+
+export interface Theme {
+  name: string;
+  nameHe: string;
+  paper: string;
+  paperDeep: string;
+  ink: string;
+  inkSoft: string;
+  accent: string;
+  accent2: string;
+  halo: string;
+  cardBg: string;
+  cardBorder: string;
+  fridayAccent: string;
+  fontHead: string;
+  fontBody: string;
+  dayTints: [string, string, string, string, string, string, string];
+  sticker: string;
+  motif: "paw" | "heart" | "web" | "star" | "snowflake";
+}
+
+export interface Person {
+  id: string;
+  name: string;
+  nameHe: string;
+  role: string;
+  roleHe: string;
+  hue: number;
+  skin: string;
+  hair: string;
+  glasses: boolean;
+  kid?: boolean;
+}
+
+export interface Activity {
+  name: string;
+  nameHe: string;
+  at: string;
+  where: string;
+  icon: string;
+}
+
+export interface Day {
+  day: string;
+  dayHe: string;
+  date: string;
+  dateHe: string;
+  dropoff?: { by: string; at: string };
+  gan?: { label: string; labelHe: string };
+  after?: Activity | null;
+  pickup?: { by: string; at: string };
+  bedtime: { by: string };
+  dinner?: { host: string; at: string; where: string };
+  notes?: string;
+  notesHe?: string;
+  isFriday?: boolean;
+  isSaturday?: boolean;
+  noGan?: boolean;
+  activities?: Activity[];
+}

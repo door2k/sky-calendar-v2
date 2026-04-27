@@ -1,0 +1,10 @@
+*, *::before, *::after { box-sizing: border-box; }
+html, body, #root { height: 100%; margin: 0; }
+body { font-family: "Nunito", system-ui, sans-serif; -webkit-font-smoothing: antialiased; }
+button { font-family: inherit; }
+
+@media print {
+  .no-print { display: none !important; }
+  @page { size: A4 landscape; margin: 0; }
+  html, body, #root { height: auto; }
+}
