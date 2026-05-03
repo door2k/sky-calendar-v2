@@ -2,7 +2,9 @@ import { useState } from "react";
 import type { Lang } from "./types";
 import { THEMES } from "./themes";
 import { WebWeekView } from "./pages/WebWeekView";
+import { WebWeekViewLive } from "./pages/WebWeekViewLive";
 import { WebMonthView } from "./pages/WebMonthView";
+import { WebMonthViewLive } from "./pages/WebMonthViewLive";
 import { PrintWeek } from "./pages/PrintWeek";
 import { PrintMonth } from "./pages/PrintMonth";
 import { PrintCombined } from "./pages/PrintCombined";
@@ -25,6 +27,19 @@ export default function App() {
   const [view, setView] = useState<ViewKey>("week");
   const [avatarSize, setAvatarSize] = useState(56);
   const [avatarHalo, setAvatarHalo] = useState(true);
+  const [live, setLive] = useState<boolean>(() => {
+    if (typeof window === "undefined") return false;
+    const params = new URLSearchParams(window.location.search);
+    if (params.has("live")) return params.get("live") !== "0";
+    return localStorage.getItem("sky:live") === "1";
+  });
+
+  const setLivePersisted = (v: boolean) => {
+    setLive(v);
+    if (typeof window !== "undefined") {
+      localStorage.setItem("sky:live", v ? "1" : "0");
+    }
+  };
 
   const theme = THEMES[themeKey];
   const avatarScale = avatarSize / 56;
@@ -32,9 +47,17 @@ export default function App() {
   const renderView = () => {
     switch (view) {
       case "week":
-        return <WebWeekView theme={theme} lang={lang} avatarScale={avatarScale} avatarHalo={avatarHalo} />;
+        return live ? (
+          <WebWeekViewLive theme={theme} lang={lang} avatarScale={avatarScale} avatarHalo={avatarHalo} />
+        ) : (
+          <WebWeekView theme={theme} lang={lang} avatarScale={avatarScale} avatarHalo={avatarHalo} />
+        );
       case "month":
-        return <WebMonthView theme={theme} lang={lang} />;
+        return live ? (
+          <WebMonthViewLive theme={theme} lang={lang} />
+        ) : (
+          <WebMonthView theme={theme} lang={lang} />
+        );
       case "print-week":
         return <PrintWeek theme={theme} lang={lang} avatarScale={avatarScale} avatarHalo={avatarHalo} />;
       case "print-month":
@@ -59,6 +82,8 @@ export default function App() {
         onAvatarSizeChange={setAvatarSize}
         avatarHalo={avatarHalo}
         onAvatarHaloChange={setAvatarHalo}
+        live={live}
+        onLiveChange={setLivePersisted}
       />
       <main
         style={{
@@ -101,6 +126,8 @@ interface ToolbarProps {
   onAvatarSizeChange: (n: number) => void;
   avatarHalo: boolean;
   onAvatarHaloChange: (b: boolean) => void;
+  live: boolean;
+  onLiveChange: (b: boolean) => void;
 }
 
 function Toolbar({
@@ -114,6 +141,8 @@ function Toolbar({
   onAvatarSizeChange,
   avatarHalo,
   onAvatarHaloChange,
+  live,
+  onLiveChange,
 }: ToolbarProps) {
   const labelStyle: React.CSSProperties = {
     fontSize: 10,
@@ -220,6 +249,29 @@ function Toolbar({
           onChange={(e) => onAvatarHaloChange(e.target.checked)}
         />
         Halo
+      </label>
+
+      <label
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 6,
+          fontSize: 12,
+          color: live ? "#7ef0a0" : "rgba(255,255,255,.7)",
+          fontWeight: live ? 700 : 400,
+          padding: "3px 8px",
+          borderRadius: 6,
+          background: live ? "rgba(126,240,160,.12)" : "transparent",
+          border: live ? "1px solid rgba(126,240,160,.4)" : "1px solid transparent",
+        }}
+        title="Use real Supabase data instead of sample data"
+      >
+        <input
+          type="checkbox"
+          checked={live}
+          onChange={(e) => onLiveChange(e.target.checked)}
+        />
+        LIVE
       </label>
 
       <div style={{ flex: 1 }} />

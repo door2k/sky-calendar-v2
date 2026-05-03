@@ -12,8 +12,15 @@ v2 redesign of [sky-calendar](https://github.com/door2k/sky-calendar). Sticker-b
 **v1 (still live, unchanged):** https://sky.door2k.dev / https://sky-calendar.vercel.app
 
 ## Current State
-Phase-1 visual prototype shipped 2026-04-27. Kladban tickets track phase-2 work:
-- **#154** — wire Supabase data layer (port hooks/API/PWA from v1)
+Phase-1 visual prototype shipped 2026-04-27. **Phase-2 data layer wired 2026-05-03** (kladban #154 progress):
+- Supabase client + 5 hooks (`useSchedule`, `usePeople`, `useActivities`, `useRealtimeSchedule`, `usePushSubscription`) — ported verbatim from v1 in `src/hooks/`
+- API routes (`/api/translate`, `/api/assistant`, `/api/push/subscribe`, `/api/push/send`) — ported verbatim from v1, edge runtime, custom Web Push impl in `api/push/_lib/web-push-edge.ts`
+- PWA: `public/manifest.json` + `public/sw.js`, registered in `main.tsx`
+- React Query provider in `main.tsx`
+- Adapter layer (`src/lib/adapters.ts`) maps v1 DB shape → v2 UI types; person UUIDs slug-mapped to v2 procedural avatars by name (lowercase contains)
+- **LIVE toggle** in toolbar (`?live=1` URL param or localStorage `sky:live`) — defaults to OFF (sample data); ON renders `WebWeekViewLive`/`WebMonthViewLive`
+
+Still tracked:
 - **#155** — investigate "days not broken into components" rendering observation Tamir flagged
 
 ## Key Decisions
@@ -26,12 +33,15 @@ Phase-1 visual prototype shipped 2026-04-27. Kladban tickets track phase-2 work:
 | Custom domain via Cloudflare CNAME (not NS delegation) | door2k.com DNS stays at Cloudflare | 2026-04-29 |
 
 ## Known Issues / TODOs
-- [ ] Phase 2: Supabase hooks (`useSchedule`, `usePeople`, `useActivities`, `useRealtimeSchedule`, `usePushSubscription`) — port from v1
-- [ ] Phase 2: API routes (`/api/assistant`, `/api/translate`, `/api/push/*`) — port from v1
-- [ ] Phase 2: real date logic (currently hardcoded "Apr 27 = today")
-- [ ] Phase 2: React Router (currently state-based view switcher)
-- [ ] Phase 2: PWA manifest + service worker
+- [x] Phase 2: Supabase hooks ✅ 2026-05-03
+- [x] Phase 2: API routes ✅ 2026-05-03 (edge runtime; web-push-edge.ts widened to `ArrayBufferLike` for TS 5.9 compat)
+- [x] Phase 2: real date logic ✅ 2026-05-03 (live mode only; sample views still hardcoded)
+- [x] Phase 2: PWA manifest + service worker ✅ 2026-05-03
+- [ ] Phase 2: React Router (currently state-based view switcher; works fine, lower priority)
 - [ ] Phase 2: Edit Day / People / Add Person modals — port from `/tmp/sky-design/sky-calendar/project/screens-web.jsx`
+- [ ] Phase 2: Wire AIStrip → `/api/assistant` (currently UI-only placeholder)
+- [ ] Adapter falls back to first PEOPLE entry when DB person name doesn't match v2's static slug list (e.g. "Ben" → tamir). Either add procedural-avatar generation from name hash, or extend `data/people.ts` registry.
+- [ ] "Gili & Yossi" combined DB person renders single avatar (gili) — extend PersonAvatar to render dual avatars when person has `& other` in name.
 - [ ] Tamir flagged "days don't visually break into components" — investigate (kladban #155)
 
 ## Deploy

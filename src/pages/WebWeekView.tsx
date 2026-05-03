@@ -1,4 +1,4 @@
-import type { Lang, Theme } from "../types";
+import type { Day, Lang, Theme } from "../types";
 import { THEMES, themeStyle } from "../themes";
 import { WEEK } from "../data/week";
 import { DayCardWeb } from "../components/DayCardWeb";
@@ -9,6 +9,15 @@ interface Props {
   lang?: Lang;
   avatarScale?: number;
   avatarHalo?: boolean;
+  days?: Day[];
+  todayIdx?: number;
+  weekLabelEn?: string;
+  weekLabelHe?: string;
+  loading?: boolean;
+  onPrevWeek?: () => void;
+  onNextWeek?: () => void;
+  onThisWeek?: () => void;
+  onCopyLastWeek?: () => void;
 }
 
 const btnIcon = (t: Theme) => ({
@@ -65,9 +74,24 @@ const ThemeBadgeRow = ({ t }: { t: Theme }) => (
   </div>
 );
 
-export const WebWeekView = ({ theme, lang = "en", avatarScale = 1, avatarHalo = true }: Props) => {
+export const WebWeekView = ({
+  theme,
+  lang = "en",
+  avatarScale = 1,
+  avatarHalo = true,
+  days,
+  todayIdx,
+  weekLabelEn,
+  weekLabelHe,
+  loading,
+  onPrevWeek,
+  onNextWeek,
+  onThisWeek,
+  onCopyLastWeek,
+}: Props) => {
   const t = theme;
-  const todayIdx = 1;
+  const week = days ?? WEEK;
+  const tIdx = todayIdx ?? 1;
   const tx = (en: string, he: string) => (lang === "he" ? he : en);
 
   return (
@@ -126,7 +150,9 @@ export const WebWeekView = ({ theme, lang = "en", avatarScale = 1, avatarHalo = 
             {tx("Sky's Week", "השבוע של סקיי")}
           </div>
           <div style={{ fontSize: 12, color: t.inkSoft, marginTop: 3 }}>
-            {tx("Today is Monday · Apr 27", "היום שני · 27 אפריל")}
+            {weekLabelEn || weekLabelHe
+              ? tx(weekLabelEn || "", weekLabelHe || "")
+              : tx("Today is Monday · Apr 27", "היום שני · 27 אפריל")}
           </div>
         </div>
 
@@ -141,15 +167,19 @@ export const WebWeekView = ({ theme, lang = "en", avatarScale = 1, avatarHalo = 
             border: `1px solid ${t.cardBorder}`,
           }}
         >
-          <button style={btnIcon(t)}>‹</button>
-          <button style={{ ...btnPill(t), background: t.accent, color: "#fff", border: "none" }}>
+          <button style={btnIcon(t)} onClick={onPrevWeek}>‹</button>
+          <button
+            style={{ ...btnPill(t), background: t.accent, color: "#fff", border: "none" }}
+            onClick={onThisWeek}
+          >
             {tx("This Week", "השבוע")}
           </button>
-          <button style={btnIcon(t)}>›</button>
+          <button style={btnIcon(t)} onClick={onNextWeek}>›</button>
         </div>
 
         <button
           title={tx("Copy from last week", "העתק מהשבוע שעבר")}
+          onClick={onCopyLastWeek}
           style={{
             display: "flex",
             alignItems: "center",
@@ -182,18 +212,31 @@ export const WebWeekView = ({ theme, lang = "en", avatarScale = 1, avatarHalo = 
           overflow: "hidden",
         }}
       >
-        {WEEK.map((d, i) => (
+        {week.map((d, i) => (
           <DayCardWeb
-            key={d.day}
+            key={`${d.date}-${i}`}
             d={d}
             t={t}
             lang={lang}
-            isToday={i === todayIdx}
+            isToday={i === tIdx}
             dayIdx={i}
             avatarScale={avatarScale}
             avatarHalo={avatarHalo}
           />
         ))}
+        {loading && (
+          <div
+            style={{
+              gridColumn: "1 / -1",
+              textAlign: "center",
+              fontSize: 11,
+              color: t.inkSoft,
+              opacity: 0.7,
+            }}
+          >
+            {tx("loading…", "טוען…")}
+          </div>
+        )}
       </div>
 
       <AIStrip t={t} lang={lang} />
