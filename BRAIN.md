@@ -52,6 +52,8 @@ Token at `~/.cloudflare-token` (Edit zone DNS scoped to door2k.com). Zone ID `5a
 
 If sky.door2k.com cert breaks: `vercel domains rm sky.door2k.com` + re-add — that re-triggers Let's Encrypt provisioning.
 
+**Env var gotcha:** `vercel env pull` writes long values with a literal `\n` suffix (escaped, inside the quoted string). When re-adding via `vercel env add ... --value="$value"` from a parsed dotenv line, strip with `sed 's/\\n$//'` first — otherwise the `\n` ends up in the env var and breaks `Authorization` headers (Anthropic returns "invalid x-api-key"). Sensitive vars (default for prod/preview) read back as `""` on `vercel env pull`; this is masking, not corruption — the real value is at runtime.
+
 ## Context for Claude
 - v1 lives on cloud at `~/projects/sky-calendar` (different project, both share Supabase ref `thzesmfiecccpvuzuscd`).
 - Design source: `/tmp/sky-design/sky-calendar/project/` (gzip from claude.ai/design, decompressed).
