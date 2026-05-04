@@ -1,14 +1,26 @@
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { addDays, format, startOfWeek } from "date-fns";
 import type { Lang, Theme } from "../types";
 import { WebWeekView } from "./WebWeekView";
-import { useWeekSchedule } from "../hooks/useSchedule";
+import { useWeekSchedule, useUpdateDaySchedule, useUpdateSaturdaySchedule } from "../hooks/useSchedule";
 import { usePeople } from "../hooks/usePeople";
 import { useActivities } from "../hooks/useActivities";
 import { useRealtimeSchedule } from "../hooks/useRealtimeSchedule";
 import { adaptWeekToDays, todayIndex } from "../lib/adapters";
 import { EditDayModal } from "../components/EditDayModal";
 import { EditSaturdayModal } from "../components/EditSaturdayModal";
+import type { ChatMessage } from "../components/AIStrip";
+
+interface AssistantAction {
+  type: string;
+  date?: string;
+  text?: string;
+  updates?: Record<string, unknown>;
+  activities?: Array<{ activity_id?: string; time?: string; custom_name?: string }>;
+  notes?: string;
+  family_dinner_person_id?: string | null;
+  family_dinner_time?: string | null;
+}
 
 interface Props {
   theme: Theme;
@@ -35,12 +47,16 @@ const DAY_NAMES = [
 export const WebWeekViewLive = ({ theme, lang = "en", avatarScale = 1, avatarHalo = true }: Props) => {
   const [anchorDate, setAnchorDate] = useState<Date>(() => new Date());
   const [openIdx, setOpenIdx] = useState<number | null>(null);
+  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
+  const [chatLoading, setChatLoading] = useState(false);
   const weekStart = useMemo(() => startOfWeek(anchorDate, { weekStartsOn: 0 }), [anchorDate]);
 
   const week = useWeekSchedule(weekStart);
   const people = usePeople();
   const activities = useActivities();
   useRealtimeSchedule();
+  const updateDay = useUpdateDaySchedule();
+  const updateSat = useUpdateSaturdaySchedule();
 
   const days = useMemo(() => {
     if (!week.data || !people.data || !activities.data) return undefined;
@@ -71,6 +87,74 @@ export const WebWeekViewLive = ({ theme, lang = "en", avatarScale = 1, avatarHal
   const handleDayClick = (i: number) => {
     setOpenIdx(i);
   };
+
+  const handleChatSend = useCallback(
+    async (text: string) => {
+      if (!people.data || !activities.data || !week.data) return;
+      const userMsg: ChatMessage = { role: "user", content: text };
+      const historyForRequest = chatMessages.filter((m) => !m.isError);
+      setChatMessages((h) => [...h, userMsg]);
+      setChatLoading(true);
+      try {
+        const schedules = (week.data?.days || []).filter((d): d is NonNullable<typeof d> => !!d);
+        const res = await fetch("/api/assistant", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            message: text,
+            people: people.data,
+            activities: activities.data,
+            schedules,
+            currentWeekStart: format(weekStart, "yyyy-MM-dd"),
+            conversationHistory: historyForRequest.map((m) => ({ role: m.role, content: m.content })),
+          }),
+        });
+        if (!res.ok) {
+          const err = (await res.json().catch(() => ({}))) as { details?: string; error?: string };
+          const detail = err.details || err.error || `${res.status} ${res.statusText}`;
+          setChatMessages((h) => [...h, { role: "assistant", content: detail, isError: true }]);
+          return;
+        }
+        const { actions } = (await res.json()) as { actions: AssistantAction[] };
+        const replyParts: string[] = [];
+        const skipped: string[] = [];
+        for (const a of actions || []) {
+          if (a.type === "message" && a.text) {
+            replyParts.push(a.text);
+          } else if (a.type === "update_day" && a.date && a.updates) {
+            await updateDay.mutateAsync({ date: a.date, ...(a.updates as Record<string, never>) });
+          } else if (a.type === "update_saturday" && a.date) {
+            await updateSat.mutateAsync({
+              date: a.date,
+              activities: (a.activities || []).map((x) => ({
+                activity_id: x.activity_id || "",
+                time: x.time,
+                custom_name: x.custom_name,
+              })),
+              notes: a.notes,
+              family_dinner_person_id: a.family_dinner_person_id ?? undefined,
+              family_dinner_time: a.family_dinner_time ?? undefined,
+            });
+          } else {
+            skipped.push(a.type);
+          }
+        }
+        if (skipped.length) {
+          replyParts.push(`(skipped unsupported actions: ${skipped.join(", ")})`);
+        }
+        if (replyParts.length === 0) replyParts.push("Done.");
+        setChatMessages((h) => [...h, { role: "assistant", content: replyParts.join("\n") }]);
+      } catch (err) {
+        setChatMessages((h) => [
+          ...h,
+          { role: "assistant", content: err instanceof Error ? err.message : String(err), isError: true },
+        ]);
+      } finally {
+        setChatLoading(false);
+      }
+    },
+    [people.data, activities.data, week.data, weekStart, chatMessages, updateDay, updateSat]
+  );
 
   const isSaturdayStyle =
     openIdx === 6 || (openIdx === 5 && !!week.data?.fridayIsLastOfMonth);
@@ -123,6 +207,9 @@ export const WebWeekViewLive = ({ theme, lang = "en", avatarScale = 1, avatarHal
         onNextWeek={() => setAnchorDate((d) => addDays(d, 7))}
         onThisWeek={() => setAnchorDate(new Date())}
         onDayClick={handleDayClick}
+        chatMessages={chatMessages}
+        onChatSend={handleChatSend}
+        chatLoading={chatLoading}
       />
       {modalCtx && !isSaturdayStyle && (
         <EditDayModal

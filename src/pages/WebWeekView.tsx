@@ -2,7 +2,7 @@ import type { Day, Lang, Theme } from "../types";
 import { THEMES, themeStyle } from "../themes";
 import { WEEK } from "../data/week";
 import { DayCardWeb } from "../components/DayCardWeb";
-import { AIStrip } from "../components/AIStrip";
+import { AIStrip, type ChatMessage } from "../components/AIStrip";
 
 interface Props {
   theme: Theme;
@@ -19,6 +19,9 @@ interface Props {
   onThisWeek?: () => void;
   onCopyLastWeek?: () => void;
   onDayClick?: (dayIdx: number) => void;
+  chatMessages?: ChatMessage[];
+  onChatSend?: (text: string) => Promise<void> | void;
+  chatLoading?: boolean;
 }
 
 const btnIcon = (t: Theme) => ({
@@ -90,6 +93,9 @@ export const WebWeekView = ({
   onThisWeek,
   onCopyLastWeek,
   onDayClick,
+  chatMessages,
+  onChatSend,
+  chatLoading,
 }: Props) => {
   const t = theme;
   const week = days ?? WEEK;
@@ -242,7 +248,7 @@ export const WebWeekView = ({
         )}
       </div>
 
-      <AIStrip t={t} lang={lang} />
+      <AIStrip t={t} lang={lang} messages={chatMessages} onSend={onChatSend} isLoading={chatLoading} />
     </div>
   );
 };
