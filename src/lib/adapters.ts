@@ -1,5 +1,5 @@
 import { addDays, format, parseISO } from "date-fns";
-import { PEOPLE } from "../data/people";
+import { PEOPLE, registerPerson, syntheticPerson } from "../data/people";
 import type { Day, Activity } from "../types";
 import type {
   DbPerson,
@@ -26,26 +26,47 @@ const HE_MONTHS = [
   "יולי", "אוגוסט", "ספטמבר", "אוקטובר", "נובמבר", "דצמבר",
 ];
 
+const KNOWN_SLUGS = PEOPLE.map((p) => p.id);
+
 function dateLabel(date: Date): { en: string; he: string } {
-  const en = format(date, "MMM d");
-  const he = `${date.getDate()} ${HE_MONTHS[date.getMonth()]}`;
-  return { en, he };
+  return {
+    en: format(date, "MMM d"),
+    he: `${date.getDate()} ${HE_MONTHS[date.getMonth()]}`,
+  };
+}
+
+function nameToSlug(name: string): string {
+  const lower = name.toLowerCase();
+  for (const slug of KNOWN_SLUGS) {
+    if (lower.includes(slug)) return slug;
+  }
+  // unknown name → register a synthetic procedural avatar, slug from name
+  const slug = lower.replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || `p-${Math.abs(hash(name))}`;
+  registerPerson(syntheticPerson(slug, name));
+  return slug;
+}
+
+function hash(s: string): number {
+  let h = 0;
+  for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) | 0;
+  return h;
+}
+
+function dbPersonSlug(p: DbPerson): string {
+  // Combined entries like "Gili & Yossi" → "gili+yossi"
+  if (p.name.includes("&")) {
+    const parts = p.name.split("&").map((s) => s.trim()).filter(Boolean);
+    if (parts.length >= 2) {
+      return parts.slice(0, 2).map(nameToSlug).join("+");
+    }
+  }
+  return nameToSlug(p.name);
 }
 
 export function buildPersonSlugMap(dbPeople: DbPerson[]): Map<string, string> {
   const map = new Map<string, string>();
-  const knownSlugs = new Set(PEOPLE.map((p) => p.id));
-
   for (const p of dbPeople) {
-    const lower = p.name.toLowerCase();
-    let matched: string | null = null;
-    for (const slug of knownSlugs) {
-      if (lower.includes(slug)) {
-        matched = slug;
-        break;
-      }
-    }
-    map.set(p.id, matched || PEOPLE[0].id);
+    map.set(p.id, dbPersonSlug(p));
   }
   return map;
 }
@@ -81,9 +102,9 @@ export function adaptWeekToDays(ctx: AdapterContext): Day[] {
   const activityMap = new Map(dbActivities.map((a) => [a.id, a]));
   const peopleById = new Map(dbPeople.map((p) => [p.id, p]));
 
-  const slugFor = (id: string | null | undefined): string => {
-    if (!id) return PEOPLE[0].id;
-    return slugMap.get(id) || PEOPLE[0].id;
+  const slugFor = (id: string | null | undefined): string | undefined => {
+    if (!id) return undefined;
+    return slugMap.get(id);
   };
 
   const days: Day[] = [];
@@ -95,23 +116,26 @@ export function adaptWeekToDays(ctx: AdapterContext): Day[] {
     const isFri = i === 5;
     const isSat = i === 6;
     const fridayIsLast = !!weekData.fridayIsLastOfMonth;
+    const dateIso = format(date, "yyyy-MM-dd");
 
     if (isSat) {
       const sat = weekData.saturday;
       const activities: Activity[] =
-        sat?.activities?.map((sa: DbSaturdayActivity) =>
-          adaptActivity(activityMap.get(sa.activity_id), sa.custom_name, sa.custom_name_he, sa.time)
-        ).filter((a): a is Activity => !!a) || [];
+        sat?.activities
+          ?.map((sa: DbSaturdayActivity) =>
+            adaptActivity(activityMap.get(sa.activity_id), sa.custom_name, sa.custom_name_he, sa.time)
+          )
+          .filter((a): a is Activity => !!a) || [];
 
       days.push({
         day: dayLabel.en,
         dayHe: dayLabel.he,
         date: dl.en,
         dateHe: dl.he,
+        dateIso,
         noGan: true,
         isSaturday: true,
         activities,
-        bedtime: { by: slugFor(sat?.family_dinner_person_id) },
         notes: sat?.notes || "",
         notesHe: sat?.notes_he || "",
       });
@@ -121,9 +145,11 @@ export function adaptWeekToDays(ctx: AdapterContext): Day[] {
     if (isFri && fridayIsLast) {
       const lastFri = weekData.lastFriday;
       const activities: Activity[] =
-        lastFri?.activities?.map((sa: DbSaturdayActivity) =>
-          adaptActivity(activityMap.get(sa.activity_id), sa.custom_name, sa.custom_name_he, sa.time)
-        ).filter((a): a is Activity => !!a) || [];
+        lastFri?.activities
+          ?.map((sa: DbSaturdayActivity) =>
+            adaptActivity(activityMap.get(sa.activity_id), sa.custom_name, sa.custom_name_he, sa.time)
+          )
+          .filter((a): a is Activity => !!a) || [];
 
       const dinnerHostId = lastFri?.family_dinner_person_id;
       const dinnerHost = dinnerHostId ? peopleById.get(dinnerHostId) : null;
@@ -133,17 +159,18 @@ export function adaptWeekToDays(ctx: AdapterContext): Day[] {
         dayHe: dayLabel.he,
         date: dl.en,
         dateHe: dl.he,
+        dateIso,
         isFriday: true,
         noGan: true,
         activities,
-        bedtime: { by: slugFor(dinnerHostId) },
-        dinner: dinnerHost
-          ? {
-              host: slugFor(dinnerHostId),
-              at: lastFri?.family_dinner_time || "16:00",
-              where: "",
-            }
-          : undefined,
+        dinner:
+          dinnerHost && slugFor(dinnerHostId)
+            ? {
+                host: slugFor(dinnerHostId)!,
+                at: lastFri?.family_dinner_time || "16:00",
+                where: dinnerHost.role ? `${dinnerHost.role} ${dinnerHost.name}'s` : "",
+              }
+            : undefined,
         notes: lastFri?.notes || "",
         notesHe: lastFri?.notes_he || "",
       });
@@ -157,27 +184,43 @@ export function adaptWeekToDays(ctx: AdapterContext): Day[] {
 
     const ganLabel = ds?.gan_activity || "";
     const ganLabelHe = ds?.gan_activity_he || ganLabel;
+    const dropoffSlug = slugFor(ds?.dropoff_person_id);
+    const pickupSlug = slugFor(ds?.pickup_person_id);
+    const bedtimeSlug = slugFor(ds?.bedtime_person_id);
+    const dinnerSlug = isFri ? slugFor(ds?.family_dinner_person_id) : undefined;
+    const dinnerHost = isFri && ds?.family_dinner_person_id ? peopleById.get(ds.family_dinner_person_id) : null;
+
+    let gan: Day["gan"] | undefined;
+    if (ds?.is_no_gan) {
+      gan = {
+        label: ds.no_gan_reason || "No Gan",
+        labelHe: ds.no_gan_reason_he || ds.no_gan_reason || "אין גן",
+      };
+    } else if (ganLabel) {
+      gan = { label: ganLabel, labelHe: ganLabelHe };
+    }
 
     days.push({
       day: dayLabel.en,
       dayHe: dayLabel.he,
       date: dl.en,
       dateHe: dl.he,
+      dateIso,
       isFriday: isFri,
       noGan: !!ds?.is_no_gan,
-      dropoff: ds?.dropoff_person_id ? { by: slugFor(ds.dropoff_person_id), at: "08:00" } : undefined,
-      gan: ganLabel || ds?.is_no_gan
-        ? { label: ds?.is_no_gan ? ds.no_gan_reason || "No Gan" : ganLabel, labelHe: ds?.is_no_gan ? ds.no_gan_reason_he || "אין גן" : ganLabelHe }
-        : undefined,
+      noGanReason: ds?.no_gan_reason || undefined,
+      noGanReasonHe: ds?.no_gan_reason_he || undefined,
+      dropoff: dropoffSlug ? { by: dropoffSlug, at: "08:00" } : undefined,
+      gan,
       after: after || undefined,
-      pickup: ds?.pickup_person_id ? { by: slugFor(ds.pickup_person_id), at: "15:30" } : undefined,
-      bedtime: { by: slugFor(ds?.bedtime_person_id) },
+      pickup: pickupSlug ? { by: pickupSlug, at: "15:30" } : undefined,
+      bedtime: bedtimeSlug ? { by: bedtimeSlug } : undefined,
       dinner:
-        isFri && ds?.family_dinner_person_id
+        dinnerSlug && dinnerHost
           ? {
-              host: slugFor(ds.family_dinner_person_id),
-              at: ds.family_dinner_time || "16:00",
-              where: "",
+              host: dinnerSlug,
+              at: ds?.family_dinner_time || "16:00",
+              where: dinnerHost.role ? `${dinnerHost.role} ${dinnerHost.name}'s` : "",
             }
           : undefined,
       notes: ds?.notes || "",

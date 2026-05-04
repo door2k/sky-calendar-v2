@@ -46,16 +46,19 @@ export interface Day {
   dayHe: string;
   date: string;
   dateHe: string;
+  dateIso?: string;
   dropoff?: { by: string; at: string };
   gan?: { label: string; labelHe: string };
   after?: Activity | null;
   pickup?: { by: string; at: string };
-  bedtime: { by: string };
-  dinner?: { host: string; at: string; where: string };
+  bedtime?: { by: string };
+  dinner?: { host: string; at: string; where: string; whereHe?: string };
   notes?: string;
   notesHe?: string;
   isFriday?: boolean;
   isSaturday?: boolean;
   noGan?: boolean;
+  noGanReason?: string;
+  noGanReasonHe?: string;
   activities?: Activity[];
 }

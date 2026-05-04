@@ -207,9 +207,11 @@ const PrintDayRow = ({ d, t, lang, dayIdx, avatarScale = 1, avatarHalo = true }:
         </PrintSlot>
       )}
 
-      <PrintSlot t={t} label="🌙">
-        <PersonAvatar id={d.bedtime.by} size={sz(36)} halo={false} theme={t} label lang={lang} />
-      </PrintSlot>
+      {d.bedtime && (
+        <PrintSlot t={t} label="🌙">
+          <PersonAvatar id={d.bedtime.by} size={sz(36)} halo={false} theme={t} label lang={lang} />
+        </PrintSlot>
+      )}
 
       <Sticker
         char={["★", "♥", "✦", t.sticker][dayIdx % 4]}

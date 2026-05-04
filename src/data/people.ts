@@ -10,4 +10,36 @@ export const PEOPLE: Person[] = [
   { id: "sky",    name: "Sky",     nameHe: "סקיי",   role: "That's me!", roleHe: "זאת אני!",   hue: 180, skin: "#f6d2b0", hair: "#7a4a22", glasses: false, kid: true },
 ];
 
-export const byId = (id: string): Person | undefined => PEOPLE.find((p) => p.id === id);
+const EXTRA: Map<string, Person> = new Map();
+
+export function registerPerson(p: Person): void {
+  if (PEOPLE.some((x) => x.id === p.id)) return;
+  EXTRA.set(p.id, p);
+}
+
+export const byId = (id: string): Person | undefined =>
+  PEOPLE.find((p) => p.id === id) ?? EXTRA.get(id);
+
+const SKIN_PALETTE = ["#f3c69a", "#e8b48a", "#f0c8a0", "#e6b48c", "#eebc94", "#dca680", "#f6d2b0", "#d4a07a"];
+const HAIR_PALETTE = ["#3a2a1c", "#1a1108", "#a06b3a", "#cccccc", "#d8d4c8", "#3a2210", "#7a4a22", "#5a3a2a"];
+
+function hashCode(s: string): number {
+  let h = 0;
+  for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) | 0;
+  return Math.abs(h);
+}
+
+export function syntheticPerson(slug: string, name: string, role = ""): Person {
+  const h = hashCode(slug);
+  return {
+    id: slug,
+    name,
+    nameHe: name,
+    role,
+    roleHe: role,
+    hue: h % 360,
+    skin: SKIN_PALETTE[h % SKIN_PALETTE.length],
+    hair: HAIR_PALETTE[(h >> 3) % HAIR_PALETTE.length],
+    glasses: (h & 1) === 1,
+  };
+}

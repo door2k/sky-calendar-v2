@@ -146,9 +146,11 @@ export const DayCardWeb = ({ d, t, lang, isToday, dayIdx, avatarScale = 1, avata
 
       <div style={{ flex: 1 }} />
 
-      <SlotRow t={t} tint={tint} icon="🌙" label={tx("Bed", "שינה")} small>
-        <PersonAvatar id={d.bedtime.by} size={sz(22)} halo={false} theme={t} />
-      </SlotRow>
+      {d.bedtime && (
+        <SlotRow t={t} tint={tint} icon="🌙" label={tx("Bed", "שינה")} small>
+          <PersonAvatar id={d.bedtime.by} size={sz(22)} halo={false} theme={t} />
+        </SlotRow>
+      )}
 
       {(d.notes || (lang === "he" && d.notesHe)) && (
         <div
