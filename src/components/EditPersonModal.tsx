@@ -1,8 +1,9 @@
-import { useEffect, useState } from "react";
-import type { CSSProperties } from "react";
+import { useEffect, useRef, useState } from "react";
+import type { CSSProperties, DragEvent } from "react";
 import type { Lang, Theme } from "../types";
 import type { DbPerson } from "../lib/db-types";
 import { useCreatePerson, useUpdatePerson } from "../hooks/usePeople";
+import { supabase } from "../lib/supabase";
 
 interface Props {
   open: boolean;
@@ -33,9 +34,30 @@ export const EditPersonModal = ({ open, onClose, person, theme, lang }: Props) =
 
   const [form, setForm] = useState<FormState>(() => fromDb(person));
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [uploadingField, setUploadingField] = useState<"avatar_url" | "avatar_url_2" | null>(null);
   const create = useCreatePerson();
   const update = useUpdatePerson();
-  const pending = create.isPending || update.isPending;
+  const pending = create.isPending || update.isPending || uploadingField !== null;
+
+  const uploadAvatar = async (file: File, field: "avatar_url" | "avatar_url_2") => {
+    setUploadingField(field);
+    setSaveError(null);
+    try {
+      const ext = file.name.split(".").pop()?.toLowerCase() || "jpg";
+      const personId = person?.id || "temp";
+      const fileName = `${personId}-${field}-${Date.now()}.${ext}`;
+      const { error: uploadError } = await supabase.storage
+        .from("avatars")
+        .upload(fileName, file, { upsert: true, contentType: file.type || `image/${ext}` });
+      if (uploadError) throw uploadError;
+      const { data } = supabase.storage.from("avatars").getPublicUrl(fileName);
+      setForm((f) => ({ ...f, [field]: data.publicUrl }));
+    } catch (err) {
+      setSaveError(`${tx("Upload failed:", "העלאה נכשלה:")} ${err instanceof Error ? err.message : String(err)}`);
+    } finally {
+      setUploadingField(null);
+    }
+  };
 
   useEffect(() => {
     if (open) {
@@ -217,51 +239,32 @@ export const EditPersonModal = ({ open, onClose, person, theme, lang }: Props) =
           </section>
 
           <section style={stickerCard}>
-            <div style={sectionLabel}>{tx("Avatar URL", "תמונה (כתובת)")}</div>
-            <input
-              type="url"
-              value={form.avatar_url}
-              onChange={(e) => setForm((f) => ({ ...f, avatar_url: e.target.value }))}
-              placeholder="https://…/avatar.jpg"
-              style={inputStyle}
+            <div style={sectionLabel}>{tx("Photo", "תמונה")}</div>
+            <AvatarDropZone
+              t={t}
+              tx={tx}
+              currentUrl={form.avatar_url}
+              uploading={uploadingField === "avatar_url"}
+              disabled={pending && uploadingField !== "avatar_url"}
+              onFile={(f) => uploadAvatar(f, "avatar_url")}
+              onUrlChange={(v) => setForm((s) => ({ ...s, avatar_url: v }))}
+              onClear={() => setForm((s) => ({ ...s, avatar_url: "" }))}
             />
-            <div style={{ fontSize: 10.5, color: t.inkSoft, marginTop: 6, fontStyle: "italic" }}>
-              {tx("Paste a public image URL. Upload via the v1 site if needed.", "הדבק כתובת תמונה ציבורית. ניתן להעלות באתר הישן.")}
-            </div>
           </section>
 
           <section style={stickerCard}>
-            <div style={sectionLabel}>{tx("Second avatar (for pairs)", "תמונה שנייה (לזוגות)")}</div>
-            <input
-              type="url"
-              value={form.avatar_url_2}
-              onChange={(e) => setForm((f) => ({ ...f, avatar_url_2: e.target.value }))}
-              placeholder="https://…/avatar2.jpg"
-              style={inputStyle}
+            <div style={sectionLabel}>{tx("Second photo (for pairs)", "תמונה שנייה (לזוגות)")}</div>
+            <AvatarDropZone
+              t={t}
+              tx={tx}
+              currentUrl={form.avatar_url_2}
+              uploading={uploadingField === "avatar_url_2"}
+              disabled={pending && uploadingField !== "avatar_url_2"}
+              onFile={(f) => uploadAvatar(f, "avatar_url_2")}
+              onUrlChange={(v) => setForm((s) => ({ ...s, avatar_url_2: v }))}
+              onClear={() => setForm((s) => ({ ...s, avatar_url_2: "" }))}
             />
           </section>
-
-          {(form.avatar_url || form.avatar_url_2) && (
-            <section style={{ ...stickerCard, background: t.paperDeep }}>
-              <div style={sectionLabel}>{tx("Preview", "תצוגה מקדימה")}</div>
-              <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
-                {form.avatar_url && (
-                  <img
-                    src={form.avatar_url}
-                    alt=""
-                    style={{ width: 56, height: 56, borderRadius: "50%", objectFit: "cover", border: `2px solid ${t.cardBorder}` }}
-                  />
-                )}
-                {form.avatar_url_2 && (
-                  <img
-                    src={form.avatar_url_2}
-                    alt=""
-                    style={{ width: 56, height: 56, borderRadius: "50%", objectFit: "cover", border: `2px solid ${t.cardBorder}` }}
-                  />
-                )}
-              </div>
-            </section>
-          )}
 
           {saveError && (
             <div
@@ -329,6 +332,170 @@ export const EditPersonModal = ({ open, onClose, person, theme, lang }: Props) =
           </button>
         </div>
       </div>
+    </div>
+  );
+};
+
+interface DropZoneProps {
+  t: Theme;
+  tx: (en: string, he: string) => string;
+  currentUrl: string;
+  uploading: boolean;
+  disabled: boolean;
+  onFile: (file: File) => void;
+  onUrlChange: (v: string) => void;
+  onClear: () => void;
+}
+
+const AvatarDropZone = ({ t, tx, currentUrl, uploading, disabled, onFile, onUrlChange, onClear }: DropZoneProps) => {
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [dragOver, setDragOver] = useState(false);
+  const [showUrlInput, setShowUrlInput] = useState(false);
+
+  const handleDrop = (e: DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    setDragOver(false);
+    if (uploading || disabled) return;
+    const file = e.dataTransfer?.files?.[0];
+    if (file && file.type.startsWith("image/")) onFile(file);
+  };
+
+  const dropStyle: CSSProperties = {
+    display: "flex",
+    alignItems: "center",
+    gap: 12,
+    padding: 10,
+    borderRadius: 12,
+    border: `2px ${dragOver ? "solid" : "dashed"} ${dragOver ? t.accent : t.cardBorder}`,
+    background: dragOver ? `${t.accent}11` : t.paper,
+    cursor: uploading || disabled ? "default" : "pointer",
+    transition: "background .15s, border-color .15s",
+  };
+
+  return (
+    <div>
+      <div
+        style={dropStyle}
+        onClick={() => !uploading && !disabled && inputRef.current?.click()}
+        onDragOver={(e) => {
+          e.preventDefault();
+          if (!uploading && !disabled) setDragOver(true);
+        }}
+        onDragLeave={() => setDragOver(false)}
+        onDrop={handleDrop}
+      >
+        <div
+          style={{
+            width: 60,
+            height: 60,
+            borderRadius: "50%",
+            overflow: "hidden",
+            border: `2px solid ${t.cardBorder}`,
+            background: t.paperDeep,
+            flexShrink: 0,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            color: t.inkSoft,
+            fontSize: 24,
+          }}
+        >
+          {currentUrl ? (
+            <img
+              src={currentUrl}
+              alt=""
+              style={{ width: "100%", height: "100%", objectFit: "cover" }}
+              onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }}
+            />
+          ) : (
+            "📷"
+          )}
+        </div>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ fontSize: 12, fontWeight: 700, fontFamily: t.fontHead, color: t.ink, lineHeight: 1.2 }}>
+            {uploading
+              ? tx("Uploading…", "מעלה…")
+              : currentUrl
+              ? tx("Drop a new photo or click to replace", "גרור תמונה חדשה או לחץ להחלפה")
+              : tx("Drop a photo here, or click to choose", "גרור תמונה לכאן, או לחץ לבחירה")}
+          </div>
+          <div style={{ fontSize: 10, color: t.inkSoft, marginTop: 3, fontStyle: "italic" }}>
+            {tx("JPG, PNG, GIF, WebP", "JPG, PNG, GIF, WebP")}
+          </div>
+        </div>
+        {currentUrl && !uploading && (
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              onClear();
+            }}
+            style={{
+              padding: "4px 10px",
+              background: "transparent",
+              border: `1.5px solid ${t.fridayAccent}`,
+              borderRadius: 99,
+              color: t.fridayAccent,
+              fontFamily: t.fontHead,
+              fontSize: 11,
+              fontWeight: 700,
+              cursor: "pointer",
+            }}
+            title={tx("Remove", "הסר")}
+          >
+            ×
+          </button>
+        )}
+      </div>
+      <input
+        ref={inputRef}
+        type="file"
+        accept="image/*"
+        style={{ display: "none" }}
+        onChange={(e) => {
+          const file = e.target.files?.[0];
+          if (file) onFile(file);
+          e.target.value = "";
+        }}
+      />
+      <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 4 }}>
+        <button
+          type="button"
+          onClick={() => setShowUrlInput((v) => !v)}
+          style={{
+            background: "transparent",
+            border: "none",
+            color: t.inkSoft,
+            fontSize: 10.5,
+            fontFamily: t.fontHead,
+            fontWeight: 700,
+            cursor: "pointer",
+            textDecoration: "underline",
+          }}
+        >
+          {showUrlInput ? tx("hide URL", "הסתר כתובת") : tx("paste URL instead", "או הדבק כתובת")}
+        </button>
+      </div>
+      {showUrlInput && (
+        <input
+          type="url"
+          value={currentUrl}
+          onChange={(e) => onUrlChange(e.target.value)}
+          placeholder="https://…/avatar.jpg"
+          style={{
+            width: "100%",
+            padding: "8px 10px",
+            background: t.paper,
+            border: `1.5px solid ${t.cardBorder}`,
+            borderRadius: 8,
+            fontFamily: t.fontBody,
+            fontSize: 13,
+            color: t.ink,
+            boxSizing: "border-box",
+            marginTop: 4,
+          }}
+        />
+      )}
     </div>
   );
 };
