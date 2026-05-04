@@ -9,6 +9,13 @@ import { Confetti } from "../components/Confetti";
 interface Props {
   theme: Theme;
   lang?: Lang;
+  days?: Day[];
+  monthLabelEn?: string;
+  monthLabelHe?: string;
+  monthYear?: number;
+  monthIndex?: number; // 0-11
+  todayN?: number; // day-of-month to highlight
+  monthEntries?: Record<number, { hasSchedule?: boolean; recurringIcons?: string[]; isFridayDinner?: boolean }>;
 }
 
 const CombinedDayCard = ({ d, t, lang, dayIdx }: { d: Day; t: Theme; lang: Lang; dayIdx: number }) => {
@@ -47,20 +54,126 @@ const CombinedDayCard = ({ d, t, lang, dayIdx }: { d: Day; t: Theme; lang: Lang;
         </div>
         <div style={{ fontSize: 14, fontWeight: 700, color: t.ink, lineHeight: 1 }}>{d.date.split(" ")[1] || d.date}</div>
       </div>
-      {!isSat && d.dropoff && <PersonAvatar id={d.dropoff.by} size={32} halo={true} theme={t} />}
-      {isSat && d.activities && (
-        <div style={{ fontSize: 18 }}>{d.activities[0].name.match(/\p{Emoji}/u)?.[0] || "✦"}</div>
+
+      {!isSat && d.dropoff && (
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 1 }}>
+          <div style={{ fontSize: 7, fontWeight: 700, letterSpacing: 0.8, color: t.inkSoft, fontFamily: t.fontHead }}>↓</div>
+          <PersonAvatar id={d.dropoff.by} size={28} halo={true} theme={t} />
+        </div>
       )}
-      {isFri && d.dinner && <PersonAvatar id={d.dinner.host} size={32} halo={true} theme={t} />}
-      {d.after && <ActIcon k={d.after.icon} size={16} color={t.accent} />}
-      {!isSat && d.pickup && <PersonAvatar id={d.pickup.by} size={28} halo={false} theme={t} />}
+
+      {!isSat && d.pickup && (
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 1 }}>
+          <div style={{ fontSize: 7, fontWeight: 700, letterSpacing: 0.8, color: t.inkSoft, fontFamily: t.fontHead }}>↑</div>
+          <PersonAvatar id={d.pickup.by} size={28} halo={false} theme={t} />
+        </div>
+      )}
+
+      {d.after && (
+        <div
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 3,
+            background: `${t.accent}22`,
+            padding: "2px 6px",
+            borderRadius: 99,
+            border: `1px solid ${t.accent}`,
+          }}
+          title={d.after.name}
+        >
+          <ActIcon k={d.after.icon} size={11} color={t.accent} />
+          <span style={{ fontSize: 8, fontWeight: 700, color: t.ink, fontFamily: t.fontHead }}>{d.after.at}</span>
+        </div>
+      )}
+
+      {d.recurring && d.recurring.map((a, i) => (
+        <div
+          key={`rec-${i}`}
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 3,
+            background: `${t.accent2}22`,
+            padding: "2px 6px",
+            borderRadius: 99,
+            border: `1px dashed ${t.accent2}`,
+          }}
+          title={a.name}
+        >
+          <ActIcon k={a.icon} size={11} color={t.accent2} />
+          <span style={{ fontSize: 8, fontWeight: 700, color: t.ink, fontFamily: t.fontHead }}>{a.at}</span>
+        </div>
+      ))}
+
+      {isSat && d.activities && d.activities.map((a, i) => (
+        <div
+          key={`sat-${i}`}
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 3,
+            background: `${t.accent}22`,
+            padding: "2px 6px",
+            borderRadius: 99,
+            border: `1px solid ${t.accent}`,
+          }}
+          title={a.name}
+        >
+          <ActIcon k={a.icon} size={11} color={t.accent} />
+          <span style={{ fontSize: 8, fontWeight: 700, color: t.ink, fontFamily: t.fontHead }}>{a.at || ""}</span>
+        </div>
+      ))}
+
+      {isFri && d.dinner && (
+        <div
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            gap: 2,
+            padding: "2px 4px 4px",
+            borderRadius: 8,
+            background: `${t.fridayAccent}22`,
+            border: `1.5px solid ${t.fridayAccent}`,
+          }}
+          title={`Friday Dinner ${d.dinner.at}`}
+        >
+          <div style={{ fontSize: 7, fontWeight: 700, letterSpacing: 0.6, color: t.fridayAccent, fontFamily: t.fontHead }}>
+            🍽 {d.dinner.at}
+          </div>
+          <PersonAvatar id={d.dinner.host} size={28} halo={true} theme={{ ...t, halo: t.fridayAccent }} />
+        </div>
+      )}
     </div>
   );
 };
 
-export const PrintCombined = ({ theme, lang = "en" }: Props) => {
+export const PrintCombined = ({
+  theme,
+  lang = "en",
+  days,
+  monthLabelEn,
+  monthLabelHe,
+  monthYear,
+  monthIndex,
+  todayN,
+  monthEntries,
+}: Props) => {
   const t = { ...theme, paper: "#ffffff", paperDeep: "#faf6ee", ink: "#1a1410", inkSoft: "#5a4a38", cardBg: "#ffffff" };
   const tx = (en: string, he: string) => (lang === "he" ? he : en);
+  const week = days ?? WEEK;
+
+  // Default month grid: April 2026 with today=27 (matches old hardcoded)
+  const yr = monthYear ?? 2026;
+  const mi = monthIndex ?? 3; // April default
+  const labelEn = monthLabelEn ?? "April 2026";
+  const labelHe = monthLabelHe ?? "אפריל 2026";
+  const today = todayN ?? 27;
+
+  const firstDow = new Date(yr, mi, 1).getDay(); // 0=Sun
+  const daysInMonth = new Date(yr, mi + 1, 0).getDate();
+
   return (
     <div
       style={{
@@ -118,7 +231,7 @@ export const PrintCombined = ({ theme, lang = "en" }: Props) => {
           ★ {tx("This Week", "השבוע")}
         </div>
         <div style={{ flex: 1, display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 6, minHeight: 0 }}>
-          {WEEK.map((d, i) => <CombinedDayCard key={d.day} d={d} t={t} lang={lang} dayIdx={i} />)}
+          {week.map((d, i) => <CombinedDayCard key={`${d.day}-${i}`} d={d} t={t} lang={lang} dayIdx={i} />)}
         </div>
       </div>
 
@@ -135,7 +248,7 @@ export const PrintCombined = ({ theme, lang = "en" }: Props) => {
             paddingLeft: 4,
           }}
         >
-          📅 {tx("April 2026", "אפריל 2026")}
+          📅 {tx(labelEn, labelHe)}
         </div>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 4, marginBottom: 4 }}>
           {(lang === "he" ? ["א", "ב", "ג", "ד", "ה", "ו", "ש"] : ["S", "M", "T", "W", "T", "F", "S"]).map((l, i) => (
@@ -159,17 +272,18 @@ export const PrintCombined = ({ theme, lang = "en" }: Props) => {
             flex: 1,
             display: "grid",
             gridTemplateColumns: "repeat(7, 1fr)",
-            gridTemplateRows: "repeat(5, 1fr)",
+            gridTemplateRows: "repeat(6, 1fr)",
             gap: 4,
             minHeight: 0,
           }}
         >
-          {Array.from({ length: 35 }).map((_, i) => {
-            const n = i - 1;
+          {Array.from({ length: 42 }).map((_, i) => {
+            const n = i - firstDow + 1;
             const dow = i % 7;
             const isFri = dow === 5;
-            const isToday = n === 27;
-            const has = n > 0 && n <= 30;
+            const isToday = n === today;
+            const has = n > 0 && n <= daysInMonth;
+            const entry = has && monthEntries ? monthEntries[n] : undefined;
             return (
               <div
                 key={i}
@@ -177,18 +291,28 @@ export const PrintCombined = ({ theme, lang = "en" }: Props) => {
                   background: !has ? t.paperDeep + "33" : isFri ? `${t.fridayAccent}15` : t.cardBg,
                   border: `1.5px solid ${isToday ? t.accent : t.cardBorder}`,
                   borderRadius: 8,
-                  padding: "4px 5px",
-                  fontSize: 11,
+                  padding: "3px 5px",
+                  fontSize: 10,
                   fontFamily: t.fontHead,
                   fontWeight: 700,
                   color: isToday ? t.accent : isFri ? t.fridayAccent : t.ink,
                   display: "flex",
-                  alignItems: "flex-start",
-                  justifyContent: "flex-start",
+                  flexDirection: "column",
+                  justifyContent: "space-between",
                   boxShadow: isToday ? `2px 2px 0 ${t.accent}` : "none",
+                  overflow: "hidden",
                 }}
               >
-                {has ? n : ""}
+                <span>{has ? n : ""}</span>
+                {entry && (
+                  <div style={{ display: "flex", gap: 2, alignItems: "center", justifyContent: "flex-end" }}>
+                    {entry.hasSchedule && <span style={{ width: 4, height: 4, borderRadius: "50%", background: t.accent }} />}
+                    {entry.recurringIcons?.slice(0, 2).map((k, j) => (
+                      <ActIcon key={j} k={k} size={9} color={t.accent2} />
+                    ))}
+                    {entry.isFridayDinner && <span style={{ fontSize: 8 }}>🍽</span>}
+                  </div>
+                )}
               </div>
             );
           })}

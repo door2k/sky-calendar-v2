@@ -8,6 +8,7 @@ import { WebMonthViewLive } from "./pages/WebMonthViewLive";
 import { PrintWeek } from "./pages/PrintWeek";
 import { PrintWeekLive } from "./pages/PrintWeekLive";
 import { PeopleEditor } from "./pages/PeopleEditor";
+import { PrintCombinedLive } from "./pages/PrintCombinedLive";
 import { PrintMonth } from "./pages/PrintMonth";
 import { PrintCombined } from "./pages/PrintCombined";
 
@@ -81,7 +82,11 @@ export default function App() {
       case "print-month":
         return <PrintMonth theme={theme} lang={lang} />;
       case "print-combined":
-        return <PrintCombined theme={theme} lang={lang} />;
+        return live ? (
+          <PrintCombinedLive theme={theme} lang={lang} />
+        ) : (
+          <PrintCombined theme={theme} lang={lang} />
+        );
     }
   };
 
