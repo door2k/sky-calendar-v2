@@ -6,6 +6,7 @@ import { WebWeekViewLive } from "./pages/WebWeekViewLive";
 import { WebMonthView } from "./pages/WebMonthView";
 import { WebMonthViewLive } from "./pages/WebMonthViewLive";
 import { PrintWeek } from "./pages/PrintWeek";
+import { PrintWeekLive } from "./pages/PrintWeekLive";
 import { PrintMonth } from "./pages/PrintMonth";
 import { PrintCombined } from "./pages/PrintCombined";
 
@@ -68,7 +69,11 @@ export default function App() {
           <WebMonthView theme={theme} lang={lang} />
         );
       case "print-week":
-        return <PrintWeek theme={theme} lang={lang} avatarScale={avatarScale} avatarHalo={avatarHalo} />;
+        return live ? (
+          <PrintWeekLive theme={theme} lang={lang} avatarScale={avatarScale} avatarHalo={avatarHalo} />
+        ) : (
+          <PrintWeek theme={theme} lang={lang} avatarScale={avatarScale} avatarHalo={avatarHalo} />
+        );
       case "print-month":
         return <PrintMonth theme={theme} lang={lang} />;
       case "print-combined":

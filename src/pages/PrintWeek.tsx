@@ -12,6 +12,9 @@ interface Props {
   lang?: Lang;
   avatarScale?: number;
   avatarHalo?: boolean;
+  days?: Day[];
+  weekLabelEn?: string;
+  weekLabelHe?: string;
 }
 
 const printSafeTheme = (theme: Theme): Theme => ({
@@ -224,9 +227,12 @@ const PrintDayRow = ({ d, t, lang, dayIdx, avatarScale = 1, avatarHalo = true }:
   );
 };
 
-export const PrintWeek = ({ theme, lang = "en", avatarScale = 1, avatarHalo = true }: Props) => {
+export const PrintWeek = ({ theme, lang = "en", avatarScale = 1, avatarHalo = true, days, weekLabelEn, weekLabelHe }: Props) => {
   const t = printSafeTheme(theme);
   const tx = (en: string, he: string) => (lang === "he" ? he : en);
+  const week = days ?? WEEK;
+  const labelEn = weekLabelEn ?? "April 26 — May 2";
+  const labelHe = weekLabelHe ?? "26 אפריל — 2 מאי";
   return (
     <div
       style={{
@@ -264,7 +270,7 @@ export const PrintWeek = ({ theme, lang = "en", avatarScale = 1, avatarHalo = tr
               {tx("Sky's Week!", "השבוע של סקיי!")}
             </div>
             <div style={{ fontSize: 12, color: t.inkSoft, fontWeight: 600, letterSpacing: 1.4, textTransform: "uppercase", marginTop: 3 }}>
-              {tx("April 26 — May 2", "26 אפריל — 2 מאי")}
+              {tx(labelEn, labelHe)}
             </div>
           </div>
           <span style={{ fontSize: 30, transform: "scaleX(-1)", display: "inline-block" }}>{t.sticker}</span>
@@ -272,8 +278,8 @@ export const PrintWeek = ({ theme, lang = "en", avatarScale = 1, avatarHalo = tr
       </div>
 
       <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 8, position: "relative", zIndex: 2, minHeight: 0 }}>
-        {WEEK.map((d, i) => (
-          <PrintDayRow key={d.day} d={d} t={t} lang={lang} dayIdx={i} avatarScale={avatarScale} avatarHalo={avatarHalo} />
+        {week.map((d, i) => (
+          <PrintDayRow key={`${d.day}-${i}`} d={d} t={t} lang={lang} dayIdx={i} avatarScale={avatarScale} avatarHalo={avatarHalo} />
         ))}
       </div>
 
