@@ -12,16 +12,23 @@ v2 redesign of [sky-calendar](https://github.com/door2k/sky-calendar). Sticker-b
 **v1 (still live, unchanged):** https://sky.door2k.dev / https://sky-calendar.vercel.app
 
 ## Current State
-Phase-1 visual prototype shipped 2026-04-27. **Phase-2 data layer wired 2026-05-03** (kladban #154 progress):
+Phase-1 visual prototype shipped 2026-04-27. **Phase-2 data layer wired 2026-05-03**. **Phase-2 functional editing shipped 2026-05-04** — sky.door2k.com is now end-to-end functional:
 - Supabase client + 5 hooks (`useSchedule`, `usePeople`, `useActivities`, `useRealtimeSchedule`, `usePushSubscription`) — ported verbatim from v1 in `src/hooks/`
-- API routes (`/api/translate`, `/api/assistant`, `/api/push/subscribe`, `/api/push/send`) — ported verbatim from v1, edge runtime, custom Web Push impl in `api/push/_lib/web-push-edge.ts`
+- API routes (`/api/translate`, `/api/assistant`, `/api/push/subscribe`, `/api/push/send`) — edge runtime, custom Web Push impl in `api/push/_lib/web-push-edge.ts`
 - PWA: `public/manifest.json` + `public/sw.js`, registered in `main.tsx`
-- React Query provider in `main.tsx`
-- Adapter layer (`src/lib/adapters.ts`) maps v1 DB shape → v2 UI types; person UUIDs slug-mapped to v2 procedural avatars by name (lowercase contains)
-- **LIVE toggle** in toolbar (`?live=1` URL param or localStorage `sky:live`) — defaults to OFF (sample data); ON renders `WebWeekViewLive`/`WebMonthViewLive`
+- Adapter layer (`src/lib/adapters.ts`) maps v1 DB shape → v2 UI types. Combined "Gili & Yossi" → `gili+yossi` slug renders as overlapping dual-avatar via PersonAvatar. Unknown DB people register a synthetic procedural avatar (hue/skin/hair from slug hash).
+- **LIVE is now the default**; `?demo=1` (or `?live=0`) opts into the sample fixture, persisted in `localStorage["sky:demo"]`. Dev controls (avatar size, halo, demo toggle) hidden behind a ⚙ button; "DEMO DATA" pill shows when sample is on.
+- **EditDayModal** (sticker style): click any weekday card → modal with no-gan toggle/reason, gan text, after-gan activity+time, dropoff/pickup/bedtime person selects, Friday dinner host+time, notes. Saves via `useUpdateDaySchedule` (auto-translates EN→HE, pushes notification on success).
+- **EditSaturdayModal**: click Saturday or last-Friday-of-month → activities list with add/remove rows, family/Friday dinner host+time, notes. Saves via `useUpdateSaturdaySchedule`.
+- **PrintWeekLive** (`pages/PrintWeekLive.tsx`): Print · Week view uses real Supabase data + computes the date-range label from today.
+- **AIStrip wired** to `/api/assistant`: typed input POSTs with people/activities/schedules/conversationHistory, response actions executed (`update_day`, `update_saturday`, `message`); other action types (create/assign/delete activity) are listed as "skipped unsupported". Errors render as a red bubble with the human-readable Anthropic message extracted from the body. **Anthropic credits are out as of 2026-05-04 → real replies will surface "credit balance too low"** until topped up.
 
 Still tracked:
 - **#155** — investigate "days not broken into components" rendering observation Tamir flagged
+- AIStrip can't fully exercise the assistant: needs Anthropic credits (user-side billing).
+- Push notifications: subscribe-flow exists but no UI surface to opt the user in.
+- `PrintMonth` and `PrintCombined` still hardcode demo data; `WebMonthViewLive` already exists.
+- Service worker caches aggressively — to test new builds in browser, manually `unregister()` SWs and clear caches.
 
 ## Key Decisions
 | Decision | Reasoning | Date |
@@ -37,11 +44,15 @@ Still tracked:
 - [x] Phase 2: API routes ✅ 2026-05-03 (edge runtime; web-push-edge.ts widened to `ArrayBufferLike` for TS 5.9 compat)
 - [x] Phase 2: real date logic ✅ 2026-05-03 (live mode only; sample views still hardcoded)
 - [x] Phase 2: PWA manifest + service worker ✅ 2026-05-03
+- [x] Phase 2: LIVE-default + ?demo escape ✅ 2026-05-04
+- [x] Phase 2: EditDayModal ✅ 2026-05-04
+- [x] Phase 2: EditSaturdayModal ✅ 2026-05-04
+- [x] Phase 2: AIStrip wired ✅ 2026-05-04 (limited by Anthropic credits)
+- [x] Phase 2: PrintWeek live data ✅ 2026-05-04
+- [x] Adapter person resolution: synthetic procedural avatars + dual-avatar combined entries ✅ 2026-05-04
 - [ ] Phase 2: React Router (currently state-based view switcher; works fine, lower priority)
-- [ ] Phase 2: Edit Day / People / Add Person modals — port from `/tmp/sky-design/sky-calendar/project/screens-web.jsx`
-- [ ] Phase 2: Wire AIStrip → `/api/assistant` (currently UI-only placeholder)
-- [ ] Adapter falls back to first PEOPLE entry when DB person name doesn't match v2's static slug list (e.g. "Ben" → tamir). Either add procedural-avatar generation from name hash, or extend `data/people.ts` registry.
-- [ ] "Gili & Yossi" combined DB person renders single avatar (gili) — extend PersonAvatar to render dual avatars when person has `& other` in name.
+- [ ] PrintMonth / PrintCombined — still hardcode demo data; only PrintWeek has a Live wrapper
+- [ ] AIStrip currently only handles `update_day`, `update_saturday`, `message` actions. `create_activity`, `assign_activity`, `delete_activity` from the assistant are surfaced as "skipped unsupported".
 - [ ] Tamir flagged "days don't visually break into components" — investigate (kladban #155)
 
 ## Deploy
