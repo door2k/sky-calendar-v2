@@ -72,18 +72,25 @@ const CombinedDayCard = ({ d, t, lang, dayIdx }: { d: Day; t: Theme; lang: Lang;
       {d.after && (
         <div
           style={{
-            display: "inline-flex",
+            display: "flex",
+            flexDirection: "column",
             alignItems: "center",
-            gap: 3,
-            background: `${t.accent}22`,
-            padding: "2px 6px",
-            borderRadius: 99,
+            gap: 1,
+            background: `${t.accent}1a`,
+            padding: "3px 5px",
+            borderRadius: 8,
             border: `1px solid ${t.accent}`,
+            maxWidth: "100%",
           }}
           title={d.after.name}
         >
-          <ActIcon k={d.after.icon} size={11} color={t.accent} />
-          <span style={{ fontSize: 8, fontWeight: 700, color: t.ink, fontFamily: t.fontHead }}>{d.after.at}</span>
+          <div style={{ display: "flex", alignItems: "center", gap: 3 }}>
+            <ActIcon k={d.after.icon} size={11} color={t.accent} />
+            <span style={{ fontSize: 8, fontWeight: 700, color: t.ink, fontFamily: t.fontHead }}>{d.after.at}</span>
+          </div>
+          <span style={{ fontSize: 8, fontWeight: 600, color: t.ink, fontFamily: t.fontHead, textAlign: "center", lineHeight: 1, overflow: "hidden", textOverflow: "ellipsis", maxWidth: 80, whiteSpace: "nowrap" }}>
+            {tx(d.after.name, d.after.nameHe)}
+          </span>
         </div>
       )}
 
@@ -91,18 +98,25 @@ const CombinedDayCard = ({ d, t, lang, dayIdx }: { d: Day; t: Theme; lang: Lang;
         <div
           key={`rec-${i}`}
           style={{
-            display: "inline-flex",
+            display: "flex",
+            flexDirection: "column",
             alignItems: "center",
-            gap: 3,
-            background: `${t.accent2}22`,
-            padding: "2px 6px",
-            borderRadius: 99,
+            gap: 1,
+            background: `${t.accent2}1a`,
+            padding: "3px 5px",
+            borderRadius: 8,
             border: `1px dashed ${t.accent2}`,
+            maxWidth: "100%",
           }}
           title={a.name}
         >
-          <ActIcon k={a.icon} size={11} color={t.accent2} />
-          <span style={{ fontSize: 8, fontWeight: 700, color: t.ink, fontFamily: t.fontHead }}>{a.at}</span>
+          <div style={{ display: "flex", alignItems: "center", gap: 3 }}>
+            <ActIcon k={a.icon} size={11} color={t.accent2} />
+            <span style={{ fontSize: 8, fontWeight: 700, color: t.ink, fontFamily: t.fontHead }}>{a.at}</span>
+          </div>
+          <span style={{ fontSize: 8, fontWeight: 600, color: t.ink, fontFamily: t.fontHead, textAlign: "center", lineHeight: 1, overflow: "hidden", textOverflow: "ellipsis", maxWidth: 80, whiteSpace: "nowrap" }}>
+            {tx(a.name, a.nameHe)}
+          </span>
         </div>
       ))}
 
@@ -110,18 +124,25 @@ const CombinedDayCard = ({ d, t, lang, dayIdx }: { d: Day; t: Theme; lang: Lang;
         <div
           key={`sat-${i}`}
           style={{
-            display: "inline-flex",
+            display: "flex",
+            flexDirection: "column",
             alignItems: "center",
-            gap: 3,
-            background: `${t.accent}22`,
-            padding: "2px 6px",
-            borderRadius: 99,
+            gap: 1,
+            background: `${t.accent}1a`,
+            padding: "3px 5px",
+            borderRadius: 8,
             border: `1px solid ${t.accent}`,
+            maxWidth: "100%",
           }}
           title={a.name}
         >
-          <ActIcon k={a.icon} size={11} color={t.accent} />
-          <span style={{ fontSize: 8, fontWeight: 700, color: t.ink, fontFamily: t.fontHead }}>{a.at || ""}</span>
+          <div style={{ display: "flex", alignItems: "center", gap: 3 }}>
+            <ActIcon k={a.icon} size={11} color={t.accent} />
+            <span style={{ fontSize: 8, fontWeight: 700, color: t.ink, fontFamily: t.fontHead }}>{a.at || ""}</span>
+          </div>
+          <span style={{ fontSize: 8, fontWeight: 600, color: t.ink, fontFamily: t.fontHead, textAlign: "center", lineHeight: 1, overflow: "hidden", textOverflow: "ellipsis", maxWidth: 80, whiteSpace: "nowrap" }}>
+            {tx(a.name, a.nameHe)}
+          </span>
         </div>
       ))}
 

@@ -6,7 +6,7 @@ const RULES: { match: RegExp; key: IconKey }[] = [
   { match: /(swim|pool|water)/i, key: "swim" },
   { match: /(dance|ballet|hip[\s-]?hop)/i, key: "dance" },
   { match: /(music|drum|piano|guitar|sing)/i, key: "music" },
-  { match: /(gym|exercis|fitness|tumbl)/i, key: "gym" },
+  { match: /(gym|exercis|fitness|tumbl|ninja|karate|judo|martial)/i, key: "gym" },
   { match: /(park|playground|outside)/i, key: "park" },
   { match: /(beach|sea|ocean|sand)/i, key: "beach" },
   { match: /(pizza)/i, key: "pizza" },
