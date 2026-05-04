@@ -12,7 +12,57 @@ interface Props {
   style?: CSSProperties;
 }
 
-const SingleAvatar = ({
+const PhotoCircle = ({
+  src,
+  alt,
+  size,
+  halo,
+  theme,
+  bg,
+}: {
+  src: string;
+  alt: string;
+  size: number;
+  halo: boolean;
+  theme?: Theme | (Partial<Theme> & { halo?: string; accent?: string });
+  bg?: string;
+}) => {
+  const haloColor = theme?.halo || "#f5d28a";
+  const ring = halo ? size * 0.08 : 0;
+  const inner = size - ring * 2;
+  return (
+    <div
+      style={{
+        width: size,
+        height: size,
+        borderRadius: "50%",
+        background: halo
+          ? `conic-gradient(from 200deg, ${haloColor}, ${theme?.accent || haloColor}, ${haloColor})`
+          : "transparent",
+        padding: ring,
+        boxShadow: halo ? `0 ${size * 0.04}px ${size * 0.12}px rgba(20,15,10,.18)` : "none",
+        position: "relative",
+      }}
+    >
+      <img
+        src={src}
+        alt={alt}
+        width={inner}
+        height={inner}
+        style={{
+          width: inner,
+          height: inner,
+          borderRadius: "50%",
+          objectFit: "cover",
+          background: bg || "#f4eede",
+          display: "block",
+        }}
+      />
+    </div>
+  );
+};
+
+const ProceduralCircle = ({
   p,
   size,
   halo,
@@ -73,6 +123,50 @@ const SingleAvatar = ({
   );
 };
 
+const SingleAvatar = ({
+  p,
+  size,
+  halo,
+  theme,
+}: {
+  p: Person;
+  size: number;
+  halo: boolean;
+  theme?: Theme | (Partial<Theme> & { halo?: string; accent?: string });
+}) => {
+  if (p.avatarUrl) {
+    return <PhotoCircle src={p.avatarUrl} alt={p.name} size={size} halo={halo} theme={theme} />;
+  }
+  return <ProceduralCircle p={p} size={size} halo={halo} theme={theme} />;
+};
+
+const DualAvatar = ({
+  urls,
+  alts,
+  size,
+  halo,
+  theme,
+}: {
+  urls: [string, string];
+  alts: [string, string];
+  size: number;
+  halo: boolean;
+  theme?: Theme | (Partial<Theme> & { halo?: string; accent?: string });
+}) => {
+  const small = Math.round(size * 0.78);
+  const overlap = Math.round(small * 0.4);
+  return (
+    <div style={{ display: "flex", alignItems: "center", height: small, position: "relative" }}>
+      <div style={{ marginInlineEnd: -overlap, zIndex: 1 }}>
+        <PhotoCircle src={urls[0]} alt={alts[0]} size={small} halo={halo} theme={theme} />
+      </div>
+      <div style={{ zIndex: 2 }}>
+        <PhotoCircle src={urls[1]} alt={alts[1]} size={small} halo={halo} theme={theme} />
+      </div>
+    </div>
+  );
+};
+
 export const PersonAvatar = ({ id, size = 56, halo = true, theme, label, lang = "en", style = {} }: Props) => {
   if (id.includes("+")) {
     const slugs = id.split("+").filter(Boolean);
@@ -112,6 +206,36 @@ export const PersonAvatar = ({ id, size = 56, halo = true, theme, label, lang = 
   const p = byId(id);
   if (!p) return null;
   const name = lang === "he" ? p.nameHe : p.name;
+
+  if (p.avatarUrl && p.avatarUrl2) {
+    return (
+      <div style={{ display: "inline-flex", flexDirection: "column", alignItems: "center", gap: size * 0.08, ...style }}>
+        <DualAvatar
+          urls={[p.avatarUrl, p.avatarUrl2]}
+          alts={[p.name, p.name]}
+          size={size}
+          halo={halo}
+          theme={theme}
+        />
+        {label && (
+          <div
+            style={{
+              fontSize: size * 0.18,
+              fontWeight: 700,
+              color: "var(--ink)",
+              fontFamily: "var(--fontHead)",
+              letterSpacing: 0.2,
+              textAlign: "center",
+              maxWidth: size * 1.6,
+            }}
+          >
+            {name}
+          </div>
+        )}
+      </div>
+    );
+  }
+
   return (
     <div style={{ display: "inline-flex", flexDirection: "column", alignItems: "center", gap: size * 0.08, ...style }}>
       <SingleAvatar p={p} size={size} halo={halo} theme={theme} />

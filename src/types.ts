@@ -31,6 +31,8 @@ export interface Person {
   hair: string;
   glasses: boolean;
   kid?: boolean;
+  avatarUrl?: string;
+  avatarUrl2?: string;
 }
 
 export interface Activity {
@@ -61,4 +63,5 @@ export interface Day {
   noGanReason?: string;
   noGanReasonHe?: string;
   activities?: Activity[];
+  recurring?: Activity[];
 }

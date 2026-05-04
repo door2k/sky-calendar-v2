@@ -1,6 +1,6 @@
 import { addDays, format, parseISO } from "date-fns";
-import { PEOPLE, registerPerson, syntheticPerson } from "../data/people";
-import type { Day, Activity } from "../types";
+import { PEOPLE, byId, upsertPerson, syntheticPerson } from "../data/people";
+import type { Day, Activity, Person } from "../types";
 import type {
   DbPerson,
   DbActivity,
@@ -12,21 +12,19 @@ import type {
 import { activityIconKey } from "./activityIcon";
 
 const DAY_NAMES = [
-  { en: "Sun", he: "ראשון" },
-  { en: "Mon", he: "שני" },
-  { en: "Tue", he: "שלישי" },
-  { en: "Wed", he: "רביעי" },
-  { en: "Thu", he: "חמישי" },
-  { en: "Fri", he: "שישי" },
-  { en: "Sat", he: "שבת" },
+  { en: "Sun", he: "ראשון", full: "sunday" },
+  { en: "Mon", he: "שני", full: "monday" },
+  { en: "Tue", he: "שלישי", full: "tuesday" },
+  { en: "Wed", he: "רביעי", full: "wednesday" },
+  { en: "Thu", he: "חמישי", full: "thursday" },
+  { en: "Fri", he: "שישי", full: "friday" },
+  { en: "Sat", he: "שבת", full: "saturday" },
 ];
 
 const HE_MONTHS = [
   "ינואר", "פברואר", "מרץ", "אפריל", "מאי", "יוני",
   "יולי", "אוגוסט", "ספטמבר", "אוקטובר", "נובמבר", "דצמבר",
 ];
-
-const KNOWN_SLUGS = PEOPLE.map((p) => p.id);
 
 function dateLabel(date: Date): { en: string; he: string } {
   return {
@@ -35,40 +33,32 @@ function dateLabel(date: Date): { en: string; he: string } {
   };
 }
 
-function nameToSlug(name: string): string {
+function nameSlug(name: string): string {
+  return name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "p";
+}
+
+function matchKnownSlug(name: string): string | undefined {
   const lower = name.toLowerCase();
-  for (const slug of KNOWN_SLUGS) {
-    if (lower.includes(slug)) return slug;
+  for (const p of PEOPLE) {
+    if (lower.includes(p.id)) return p.id;
   }
-  // unknown name → register a synthetic procedural avatar, slug from name
-  const slug = lower.replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || `p-${Math.abs(hash(name))}`;
-  registerPerson(syntheticPerson(slug, name));
+  return undefined;
+}
+
+function ensurePerson(p: DbPerson): string {
+  const isCombined = p.name.includes("&");
+  const known = isCombined ? undefined : matchKnownSlug(p.name);
+  const slug = known || nameSlug(p.name);
+  const base: Person =
+    known && PEOPLE.find((x) => x.id === known)
+      ? { ...PEOPLE.find((x) => x.id === known)! }
+      : syntheticPerson(slug, p.name, p.role);
+  if (p.avatar_url) base.avatarUrl = p.avatar_url;
+  if (p.avatar_url_2) base.avatarUrl2 = p.avatar_url_2;
+  base.name = p.name;
+  if (p.role) base.role = p.role;
+  upsertPerson(base);
   return slug;
-}
-
-function hash(s: string): number {
-  let h = 0;
-  for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) | 0;
-  return h;
-}
-
-function dbPersonSlug(p: DbPerson): string {
-  // Combined entries like "Gili & Yossi" → "gili+yossi"
-  if (p.name.includes("&")) {
-    const parts = p.name.split("&").map((s) => s.trim()).filter(Boolean);
-    if (parts.length >= 2) {
-      return parts.slice(0, 2).map(nameToSlug).join("+");
-    }
-  }
-  return nameToSlug(p.name);
-}
-
-export function buildPersonSlugMap(dbPeople: DbPerson[]): Map<string, string> {
-  const map = new Map<string, string>();
-  for (const p of dbPeople) {
-    map.set(p.id, dbPersonSlug(p));
-  }
-  return map;
 }
 
 function adaptActivity(
@@ -94,6 +84,14 @@ export interface AdapterContext {
   weekData: DbWeekData;
   dbPeople: DbPerson[];
   dbActivities: DbActivity[];
+}
+
+export function buildPersonSlugMap(dbPeople: DbPerson[]): Map<string, string> {
+  const map = new Map<string, string>();
+  for (const p of dbPeople) {
+    map.set(p.id, ensurePerson(p));
+  }
+  return map;
 }
 
 export function adaptWeekToDays(ctx: AdapterContext): Day[] {
@@ -200,6 +198,16 @@ export function adaptWeekToDays(ctx: AdapterContext): Day[] {
       gan = { label: ganLabel, labelHe: ganLabelHe };
     }
 
+    const recurring: Activity[] = dbActivities
+      .filter(
+        (a) =>
+          a.is_recurring &&
+          a.recurrence_day?.toLowerCase() === dayLabel.full &&
+          a.id !== ds?.after_gan_activity_id
+      )
+      .map((a) => adaptActivity(a, null, null, a.default_time))
+      .filter((a): a is Activity => !!a);
+
     days.push({
       day: dayLabel.en,
       dayHe: dayLabel.he,
@@ -213,6 +221,7 @@ export function adaptWeekToDays(ctx: AdapterContext): Day[] {
       dropoff: dropoffSlug ? { by: dropoffSlug, at: "08:00" } : undefined,
       gan,
       after: after || undefined,
+      recurring: recurring.length ? recurring : undefined,
       pickup: pickupSlug ? { by: pickupSlug, at: "15:30" } : undefined,
       bedtime: bedtimeSlug ? { by: bedtimeSlug } : undefined,
       dinner:
@@ -227,6 +236,9 @@ export function adaptWeekToDays(ctx: AdapterContext): Day[] {
       notesHe: ds?.notes_he || "",
     });
   }
+
+  // touch byId so unused-import lint doesn't complain
+  void byId;
 
   return days;
 }

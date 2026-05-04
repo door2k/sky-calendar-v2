@@ -119,6 +119,8 @@ export const DayCardWeb = ({ d, t, lang, isToday, dayIdx, avatarScale = 1, avata
 
       {d.after && <ActivityChip t={t} a={d.after} lang={lang} />}
 
+      {d.recurring && d.recurring.map((a, i) => <ActivityChip key={`rec-${i}`} t={t} a={a} lang={lang} />)}
+
       {isSat && d.activities && d.activities.map((a, i) => <ActivityChip key={i} t={t} a={a} lang={lang} />)}
 
       {!isSat && d.pickup && (

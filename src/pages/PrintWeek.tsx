@@ -176,6 +176,14 @@ const PrintDayRow = ({ d, t, lang, dayIdx, avatarScale = 1, avatarHalo = true }:
         </PrintSlot>
       )}
 
+      {d.recurring && d.recurring.length > 0 && (
+        <PrintSlot t={t} label={tx("RECURRING", "קבוע")} flex>
+          <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+            {d.recurring.map((a, i) => <PrintActivity key={`rec-${i}`} t={t} a={a} lang={lang} />)}
+          </div>
+        </PrintSlot>
+      )}
+
       {isSat && d.activities && (
         <PrintSlot t={t} label={tx("SATURDAY FUN", "סופ״ש")} flex>
           <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>

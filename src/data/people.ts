@@ -18,7 +18,7 @@ export function registerPerson(p: Person): void {
 }
 
 export const byId = (id: string): Person | undefined =>
-  PEOPLE.find((p) => p.id === id) ?? EXTRA.get(id);
+  EXTRA.get(id) ?? PEOPLE.find((p) => p.id === id);
 
 const SKIN_PALETTE = ["#f3c69a", "#e8b48a", "#f0c8a0", "#e6b48c", "#eebc94", "#dca680", "#f6d2b0", "#d4a07a"];
 const HAIR_PALETTE = ["#3a2a1c", "#1a1108", "#a06b3a", "#cccccc", "#d8d4c8", "#3a2210", "#7a4a22", "#5a3a2a"];
@@ -29,17 +29,28 @@ function hashCode(s: string): number {
   return Math.abs(h);
 }
 
-export function syntheticPerson(slug: string, name: string, role = ""): Person {
+export function syntheticPerson(
+  slug: string,
+  name: string,
+  role = "",
+  opts: { avatarUrl?: string; avatarUrl2?: string; nameHe?: string; roleHe?: string } = {}
+): Person {
   const h = hashCode(slug);
   return {
     id: slug,
     name,
-    nameHe: name,
+    nameHe: opts.nameHe || name,
     role,
-    roleHe: role,
+    roleHe: opts.roleHe || role,
     hue: h % 360,
     skin: SKIN_PALETTE[h % SKIN_PALETTE.length],
     hair: HAIR_PALETTE[(h >> 3) % HAIR_PALETTE.length],
     glasses: (h & 1) === 1,
+    avatarUrl: opts.avatarUrl,
+    avatarUrl2: opts.avatarUrl2,
   };
+}
+
+export function upsertPerson(p: Person): void {
+  EXTRA.set(p.id, p);
 }
