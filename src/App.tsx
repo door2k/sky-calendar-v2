@@ -7,14 +7,16 @@ import { WebMonthView } from "./pages/WebMonthView";
 import { WebMonthViewLive } from "./pages/WebMonthViewLive";
 import { PrintWeek } from "./pages/PrintWeek";
 import { PrintWeekLive } from "./pages/PrintWeekLive";
+import { PeopleEditor } from "./pages/PeopleEditor";
 import { PrintMonth } from "./pages/PrintMonth";
 import { PrintCombined } from "./pages/PrintCombined";
 
-type ViewKey = "week" | "month" | "print-week" | "print-month" | "print-combined";
+type ViewKey = "week" | "month" | "people" | "print-week" | "print-month" | "print-combined";
 
 const VIEWS: { key: ViewKey; label: string; labelHe: string }[] = [
   { key: "week", label: "Week", labelHe: "שבוע" },
   { key: "month", label: "Month", labelHe: "חודש" },
+  { key: "people", label: "People", labelHe: "אנשים" },
   { key: "print-week", label: "Print · Week", labelHe: "הדפסה · שבוע" },
   { key: "print-month", label: "Print · Month", labelHe: "הדפסה · חודש" },
   { key: "print-combined", label: "Print · Combined", labelHe: "הדפסה · משולב" },
@@ -68,6 +70,8 @@ export default function App() {
         ) : (
           <WebMonthView theme={theme} lang={lang} />
         );
+      case "people":
+        return <PeopleEditor theme={theme} lang={lang} />;
       case "print-week":
         return live ? (
           <PrintWeekLive theme={theme} lang={lang} avatarScale={avatarScale} avatarHalo={avatarHalo} />

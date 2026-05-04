@@ -146,7 +146,7 @@ const PrintDayRow = ({ d, t, lang, dayIdx, avatarScale = 1, avatarHalo = true }:
       {!isSat && d.dropoff && (
         <PrintSlot t={t} label={tx("DROP", "מסירה")}>
           <PersonAvatar id={d.dropoff.by} size={sz(42)} halo={avatarHalo} theme={t} label lang={lang} />
-          <PrintTime t={t} time={d.dropoff.at} />
+          {d.dropoff.at && <PrintTime t={t} time={d.dropoff.at} />}
         </PrintSlot>
       )}
 
@@ -170,6 +170,13 @@ const PrintDayRow = ({ d, t, lang, dayIdx, avatarScale = 1, avatarHalo = true }:
         </PrintSlot>
       )}
 
+      {!isSat && d.pickup && (
+        <PrintSlot t={t} label={tx("PICK", "איסוף")}>
+          <PersonAvatar id={d.pickup.by} size={sz(42)} halo={avatarHalo} theme={t} label lang={lang} />
+          {d.pickup.at && <PrintTime t={t} time={d.pickup.at} />}
+        </PrintSlot>
+      )}
+
       {d.after && (
         <PrintSlot t={t} label={tx("ACTIVITY", "פעילות")} flex>
           <PrintActivity t={t} a={d.after} lang={lang} />
@@ -189,13 +196,6 @@ const PrintDayRow = ({ d, t, lang, dayIdx, avatarScale = 1, avatarHalo = true }:
           <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
             {d.activities.map((a, i) => <PrintActivity key={i} t={t} a={a} lang={lang} />)}
           </div>
-        </PrintSlot>
-      )}
-
-      {!isSat && d.pickup && (
-        <PrintSlot t={t} label={tx("PICK", "איסוף")}>
-          <PersonAvatar id={d.pickup.by} size={sz(42)} halo={avatarHalo} theme={t} label lang={lang} />
-          <PrintTime t={t} time={d.pickup.at} />
         </PrintSlot>
       )}
 

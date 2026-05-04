@@ -218,11 +218,11 @@ export function adaptWeekToDays(ctx: AdapterContext): Day[] {
       noGan: !!ds?.is_no_gan,
       noGanReason: ds?.no_gan_reason || undefined,
       noGanReasonHe: ds?.no_gan_reason_he || undefined,
-      dropoff: dropoffSlug ? { by: dropoffSlug, at: "08:00" } : undefined,
+      dropoff: dropoffSlug ? { by: dropoffSlug } : undefined,
       gan,
       after: after || undefined,
       recurring: recurring.length ? recurring : undefined,
-      pickup: pickupSlug ? { by: pickupSlug, at: "15:30" } : undefined,
+      pickup: pickupSlug ? { by: pickupSlug } : undefined,
       bedtime: bedtimeSlug ? { by: bedtimeSlug } : undefined,
       dinner:
         dinnerSlug && dinnerHost

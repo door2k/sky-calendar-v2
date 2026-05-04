@@ -117,17 +117,17 @@ export const DayCardWeb = ({ d, t, lang, isToday, dayIdx, avatarScale = 1, avata
         </div>
       )}
 
-      {d.after && <ActivityChip t={t} a={d.after} lang={lang} />}
-
-      {d.recurring && d.recurring.map((a, i) => <ActivityChip key={`rec-${i}`} t={t} a={a} lang={lang} />)}
-
-      {isSat && d.activities && d.activities.map((a, i) => <ActivityChip key={i} t={t} a={a} lang={lang} />)}
-
       {!isSat && d.pickup && (
         <SlotRow t={t} tint={tint} icon="↑" label={tx("Pick", "איסוף")} time={d.pickup.at}>
           <PersonAvatar id={d.pickup.by} size={sz(26)} halo={avatarHalo} theme={t} />
         </SlotRow>
       )}
+
+      {d.after && <ActivityChip t={t} a={d.after} lang={lang} />}
+
+      {d.recurring && d.recurring.map((a, i) => <ActivityChip key={`rec-${i}`} t={t} a={a} lang={lang} />)}
+
+      {isSat && d.activities && d.activities.map((a, i) => <ActivityChip key={i} t={t} a={a} lang={lang} />)}
 
       {isFri && d.dinner && (
         <div

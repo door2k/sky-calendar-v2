@@ -49,10 +49,10 @@ export interface Day {
   date: string;
   dateHe: string;
   dateIso?: string;
-  dropoff?: { by: string; at: string };
+  dropoff?: { by: string; at?: string };
   gan?: { label: string; labelHe: string };
   after?: Activity | null;
-  pickup?: { by: string; at: string };
+  pickup?: { by: string; at?: string };
   bedtime?: { by: string };
   dinner?: { host: string; at: string; where: string; whereHe?: string };
   notes?: string;
