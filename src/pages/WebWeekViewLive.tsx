@@ -8,6 +8,7 @@ import { useActivities } from "../hooks/useActivities";
 import { useRealtimeSchedule } from "../hooks/useRealtimeSchedule";
 import { adaptWeekToDays, todayIndex } from "../lib/adapters";
 import { EditDayModal } from "../components/EditDayModal";
+import { EditSaturdayModal } from "../components/EditSaturdayModal";
 
 interface Props {
   theme: Theme;
@@ -68,16 +69,16 @@ export const WebWeekViewLive = ({ theme, lang = "en", avatarScale = 1, avatarHal
   const error = week.error || people.error || activities.error;
 
   const handleDayClick = (i: number) => {
-    if (i === 6) return;
-    if (i === 5 && week.data?.fridayIsLastOfMonth) return;
     setOpenIdx(i);
   };
+
+  const isSaturdayStyle =
+    openIdx === 6 || (openIdx === 5 && !!week.data?.fridayIsLastOfMonth);
 
   const modalCtx = useMemo(() => {
     if (openIdx === null || !week.data || !people.data || !activities.data) return null;
     const date = addDays(weekStart, openIdx);
     const dateIso = format(date, "yyyy-MM-dd");
-    const current = openIdx <= 5 ? week.data.days[openIdx] : null;
     return {
       dateIso,
       dayIdx: openIdx,
@@ -85,9 +86,15 @@ export const WebWeekViewLive = ({ theme, lang = "en", avatarScale = 1, avatarHal
       dayLabelHe: DAY_NAMES[openIdx].he,
       dateLabelEn: format(date, "MMM d"),
       dateLabelHe: `${date.getDate()} ${HE_MONTHS[date.getMonth()]}`,
-      current,
       dbPeople: people.data,
       dbActivities: activities.data,
+      currentDay: openIdx <= 5 ? week.data.days[openIdx] : null,
+      currentSat:
+        openIdx === 6
+          ? week.data.saturday
+          : openIdx === 5 && week.data.fridayIsLastOfMonth
+          ? week.data.lastFriday || null
+          : null,
     };
   }, [openIdx, week.data, people.data, activities.data, weekStart]);
 
@@ -117,9 +124,9 @@ export const WebWeekViewLive = ({ theme, lang = "en", avatarScale = 1, avatarHal
         onThisWeek={() => setAnchorDate(new Date())}
         onDayClick={handleDayClick}
       />
-      {modalCtx && (
+      {modalCtx && !isSaturdayStyle && (
         <EditDayModal
-          open={openIdx !== null}
+          open
           onClose={() => setOpenIdx(null)}
           dateIso={modalCtx.dateIso}
           dayIdx={modalCtx.dayIdx}
@@ -127,11 +134,28 @@ export const WebWeekViewLive = ({ theme, lang = "en", avatarScale = 1, avatarHal
           dayLabelHe={modalCtx.dayLabelHe}
           dateLabelEn={modalCtx.dateLabelEn}
           dateLabelHe={modalCtx.dateLabelHe}
-          current={modalCtx.current}
+          current={modalCtx.currentDay}
           dbPeople={modalCtx.dbPeople}
           dbActivities={modalCtx.dbActivities}
           theme={theme}
           lang={lang}
+        />
+      )}
+      {modalCtx && isSaturdayStyle && (
+        <EditSaturdayModal
+          open
+          onClose={() => setOpenIdx(null)}
+          dateIso={modalCtx.dateIso}
+          dayLabelEn={modalCtx.dayLabelEn}
+          dayLabelHe={modalCtx.dayLabelHe}
+          dateLabelEn={modalCtx.dateLabelEn}
+          dateLabelHe={modalCtx.dateLabelHe}
+          current={modalCtx.currentSat}
+          dbPeople={modalCtx.dbPeople}
+          dbActivities={modalCtx.dbActivities}
+          theme={theme}
+          lang={lang}
+          variant={openIdx === 6 ? "saturday" : "last-friday"}
         />
       )}
     </>
