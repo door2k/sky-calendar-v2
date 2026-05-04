@@ -7,6 +7,7 @@ import { usePeople } from "../hooks/usePeople";
 import { useActivities } from "../hooks/useActivities";
 import { useRealtimeSchedule } from "../hooks/useRealtimeSchedule";
 import { adaptWeekToDays, todayIndex } from "../lib/adapters";
+import { EditDayModal } from "../components/EditDayModal";
 
 interface Props {
   theme: Theme;
@@ -20,8 +21,19 @@ const HE_MONTHS = [
   "יולי", "אוגוסט", "ספטמבר", "אוקטובר", "נובמבר", "דצמבר",
 ];
 
+const DAY_NAMES = [
+  { en: "Sun", he: "ראשון" },
+  { en: "Mon", he: "שני" },
+  { en: "Tue", he: "שלישי" },
+  { en: "Wed", he: "רביעי" },
+  { en: "Thu", he: "חמישי" },
+  { en: "Fri", he: "שישי" },
+  { en: "Sat", he: "שבת" },
+];
+
 export const WebWeekViewLive = ({ theme, lang = "en", avatarScale = 1, avatarHalo = true }: Props) => {
   const [anchorDate, setAnchorDate] = useState<Date>(() => new Date());
+  const [openIdx, setOpenIdx] = useState<number | null>(null);
   const weekStart = useMemo(() => startOfWeek(anchorDate, { weekStartsOn: 0 }), [anchorDate]);
 
   const week = useWeekSchedule(weekStart);
@@ -55,6 +67,30 @@ export const WebWeekViewLive = ({ theme, lang = "en", avatarScale = 1, avatarHal
   const loading = week.isLoading || people.isLoading || activities.isLoading;
   const error = week.error || people.error || activities.error;
 
+  const handleDayClick = (i: number) => {
+    if (i === 6) return;
+    if (i === 5 && week.data?.fridayIsLastOfMonth) return;
+    setOpenIdx(i);
+  };
+
+  const modalCtx = useMemo(() => {
+    if (openIdx === null || !week.data || !people.data || !activities.data) return null;
+    const date = addDays(weekStart, openIdx);
+    const dateIso = format(date, "yyyy-MM-dd");
+    const current = openIdx <= 5 ? week.data.days[openIdx] : null;
+    return {
+      dateIso,
+      dayIdx: openIdx,
+      dayLabelEn: DAY_NAMES[openIdx].en,
+      dayLabelHe: DAY_NAMES[openIdx].he,
+      dateLabelEn: format(date, "MMM d"),
+      dateLabelHe: `${date.getDate()} ${HE_MONTHS[date.getMonth()]}`,
+      current,
+      dbPeople: people.data,
+      dbActivities: activities.data,
+    };
+  }, [openIdx, week.data, people.data, activities.data, weekStart]);
+
   if (error) {
     return (
       <div style={{ padding: 24, color: theme.ink, fontFamily: theme.fontBody }}>
@@ -65,19 +101,39 @@ export const WebWeekViewLive = ({ theme, lang = "en", avatarScale = 1, avatarHal
   }
 
   return (
-    <WebWeekView
-      theme={theme}
-      lang={lang}
-      avatarScale={avatarScale}
-      avatarHalo={avatarHalo}
-      days={days}
-      todayIdx={tIdx}
-      weekLabelEn={labelEn}
-      weekLabelHe={labelHe}
-      loading={loading && !days}
-      onPrevWeek={() => setAnchorDate((d) => addDays(d, -7))}
-      onNextWeek={() => setAnchorDate((d) => addDays(d, 7))}
-      onThisWeek={() => setAnchorDate(new Date())}
-    />
+    <>
+      <WebWeekView
+        theme={theme}
+        lang={lang}
+        avatarScale={avatarScale}
+        avatarHalo={avatarHalo}
+        days={days}
+        todayIdx={tIdx}
+        weekLabelEn={labelEn}
+        weekLabelHe={labelHe}
+        loading={loading && !days}
+        onPrevWeek={() => setAnchorDate((d) => addDays(d, -7))}
+        onNextWeek={() => setAnchorDate((d) => addDays(d, 7))}
+        onThisWeek={() => setAnchorDate(new Date())}
+        onDayClick={handleDayClick}
+      />
+      {modalCtx && (
+        <EditDayModal
+          open={openIdx !== null}
+          onClose={() => setOpenIdx(null)}
+          dateIso={modalCtx.dateIso}
+          dayIdx={modalCtx.dayIdx}
+          dayLabelEn={modalCtx.dayLabelEn}
+          dayLabelHe={modalCtx.dayLabelHe}
+          dateLabelEn={modalCtx.dateLabelEn}
+          dateLabelHe={modalCtx.dateLabelHe}
+          current={modalCtx.current}
+          dbPeople={modalCtx.dbPeople}
+          dbActivities={modalCtx.dbActivities}
+          theme={theme}
+          lang={lang}
+        />
+      )}
+    </>
   );
 };

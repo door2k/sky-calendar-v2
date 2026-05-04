@@ -12,9 +12,10 @@ interface Props {
   dayIdx: number;
   avatarScale?: number;
   avatarHalo?: boolean;
+  onClick?: () => void;
 }
 
-export const DayCardWeb = ({ d, t, lang, isToday, dayIdx, avatarScale = 1, avatarHalo = true }: Props) => {
+export const DayCardWeb = ({ d, t, lang, isToday, dayIdx, avatarScale = 1, avatarHalo = true, onClick }: Props) => {
   const sz = (px: number) => Math.round(px * avatarScale);
   const tint = t.dayTints[dayIdx];
   const tx = (en: string, he: string) => (lang === "he" ? he : en);
@@ -24,6 +25,10 @@ export const DayCardWeb = ({ d, t, lang, isToday, dayIdx, avatarScale = 1, avata
 
   return (
     <div
+      onClick={onClick}
+      role={onClick ? "button" : undefined}
+      tabIndex={onClick ? 0 : undefined}
+      onKeyDown={onClick ? (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onClick(); } } : undefined}
       style={{
         background: isNoGan ? `linear-gradient(180deg, ${t.fridayAccent}22 0%, ${t.cardBg} 60%)` : t.cardBg,
         borderRadius: isNoGan ? "8px 32px 8px 32px" : 16,
@@ -40,6 +45,7 @@ export const DayCardWeb = ({ d, t, lang, isToday, dayIdx, avatarScale = 1, avata
         position: "relative",
         overflow: "hidden",
         minHeight: 0,
+        cursor: onClick ? "pointer" : "default",
       }}
     >
       <div style={{ textAlign: "center", borderBottom: `1.5px dashed ${t.cardBorder}`, paddingBottom: 6, position: "relative" }}>

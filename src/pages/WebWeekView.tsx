@@ -18,6 +18,7 @@ interface Props {
   onNextWeek?: () => void;
   onThisWeek?: () => void;
   onCopyLastWeek?: () => void;
+  onDayClick?: (dayIdx: number) => void;
 }
 
 const btnIcon = (t: Theme) => ({
@@ -88,6 +89,7 @@ export const WebWeekView = ({
   onNextWeek,
   onThisWeek,
   onCopyLastWeek,
+  onDayClick,
 }: Props) => {
   const t = theme;
   const week = days ?? WEEK;
@@ -222,6 +224,7 @@ export const WebWeekView = ({
             dayIdx={i}
             avatarScale={avatarScale}
             avatarHalo={avatarHalo}
+            onClick={onDayClick ? () => onDayClick(i) : undefined}
           />
         ))}
         {loading && (
