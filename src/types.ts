@@ -42,6 +42,7 @@ export interface Activity {
   at: string;
   where: string;
   icon: string;
+  withSlugs?: string[];
 }
 
 export interface Day {

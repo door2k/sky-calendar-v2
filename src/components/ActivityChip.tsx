@@ -1,5 +1,6 @@
 import type { Activity, Lang, Theme } from "../types";
 import { ActIcon } from "./ActIcon";
+import { PersonAvatar } from "./PersonAvatar";
 
 interface Props {
   t: Theme;
@@ -59,8 +60,17 @@ export const ActivityChip = ({ t, a, lang, onClick, recurring }: Props) => {
         >
           {tx(a.name, a.nameHe)}
         </div>
-        <div style={{ fontSize: 9, color: t.inkSoft }}>{a.at} · {a.where}</div>
+        <div style={{ fontSize: 9, color: t.inkSoft }}>{a.at}{a.where ? ` · ${a.where}` : ""}</div>
       </div>
+      {a.withSlugs && a.withSlugs.length > 0 && (
+        <div style={{ display: "flex", alignItems: "center", marginInlineStart: 2 }}>
+          {a.withSlugs.slice(0, 3).map((slug, i) => (
+            <div key={slug + i} style={{ marginInlineStart: i === 0 ? 0 : -8 }} title={slug}>
+              <PersonAvatar id={slug} size={20} halo={false} theme={t} />
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 };

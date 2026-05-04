@@ -1,9 +1,11 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { CSSProperties } from "react";
 import type { Lang, Theme } from "../types";
 import type { DbActivity, DbPerson } from "../lib/db-types";
 import { useCreateActivity, useUpdateActivity, useDeleteActivity } from "../hooks/useActivities";
 import { ActIcon } from "./ActIcon";
+import { PersonAvatar } from "./PersonAvatar";
+import { buildPersonSlugMap } from "../lib/adapters";
 
 interface Props {
   open: boolean;
@@ -66,6 +68,7 @@ export const EditActivityModal = ({ open, onClose, activity, dbPeople, theme, la
   const update = useUpdateActivity();
   const del = useDeleteActivity();
   const pending = create.isPending || update.isPending || del.isPending;
+  const peopleSlugMap = useMemo(() => buildPersonSlugMap(dbPeople), [dbPeople]);
 
   useEffect(() => {
     if (open) {
@@ -368,17 +371,22 @@ export const EditActivityModal = ({ open, onClose, activity, dbPeople, theme, la
           </section>
 
           <section style={stickerCard}>
-            <div style={sectionLabel}>{tx("Associated people", "אנשים קשורים")}</div>
-            <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+            <div style={sectionLabel}>{tx("Who's involved", "מי משתתף")}</div>
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
               {dbPeople.map((p) => {
                 const sel = form.associated_person_ids.includes(p.id);
+                const slug = peopleSlugMap.get(p.id) || p.id;
                 return (
                   <button
                     key={p.id}
                     type="button"
                     onClick={() => togglePerson(p.id)}
+                    title={p.name}
                     style={{
-                      padding: "5px 10px",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 6,
+                      padding: "4px 10px 4px 4px",
                       borderRadius: 99,
                       border: sel ? `2px solid ${t.accent}` : `1.5px solid ${t.cardBorder}`,
                       background: sel ? `${t.accent}22` : t.paper,
@@ -387,9 +395,11 @@ export const EditActivityModal = ({ open, onClose, activity, dbPeople, theme, la
                       fontSize: 12,
                       fontWeight: 700,
                       cursor: "pointer",
+                      transition: "background .15s, border-color .15s",
                     }}
                   >
-                    {p.name}
+                    <PersonAvatar id={slug} size={28} halo={false} theme={t} />
+                    <span>{p.name}</span>
                   </button>
                 );
               })}

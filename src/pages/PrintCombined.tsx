@@ -91,6 +91,15 @@ const CombinedDayCard = ({ d, t, lang, dayIdx }: { d: Day; t: Theme; lang: Lang;
           <span style={{ fontSize: 8, fontWeight: 600, color: t.ink, fontFamily: t.fontHead, textAlign: "center", lineHeight: 1, overflow: "hidden", textOverflow: "ellipsis", maxWidth: 80, whiteSpace: "nowrap" }}>
             {tx(d.after.name, d.after.nameHe)}
           </span>
+          {d.after.withSlugs && d.after.withSlugs.length > 0 && (
+            <div style={{ display: "flex", alignItems: "center", marginTop: 1 }}>
+              {d.after.withSlugs.slice(0, 3).map((slug, j) => (
+                <div key={slug + j} style={{ marginInlineStart: j === 0 ? 0 : -6 }}>
+                  <PersonAvatar id={slug} size={16} halo={false} theme={t} />
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       )}
 
@@ -117,6 +126,15 @@ const CombinedDayCard = ({ d, t, lang, dayIdx }: { d: Day; t: Theme; lang: Lang;
           <span style={{ fontSize: 8, fontWeight: 600, color: t.ink, fontFamily: t.fontHead, textAlign: "center", lineHeight: 1, overflow: "hidden", textOverflow: "ellipsis", maxWidth: 80, whiteSpace: "nowrap" }}>
             {tx(a.name, a.nameHe)}
           </span>
+          {a.withSlugs && a.withSlugs.length > 0 && (
+            <div style={{ display: "flex", alignItems: "center", marginTop: 1 }}>
+              {a.withSlugs.slice(0, 3).map((slug, j) => (
+                <div key={slug + j} style={{ marginInlineStart: j === 0 ? 0 : -6 }}>
+                  <PersonAvatar id={slug} size={16} halo={false} theme={t} />
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       ))}
 

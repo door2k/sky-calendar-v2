@@ -42,6 +42,12 @@ export const PrintMonthLive = ({ theme, lang = "en" }: Props) => {
     const out: Record<number, MonthDayEntry> = {};
     const lastDay = new Date(yr, mi + 1, 0).getDate();
 
+    const slugsForActivity = (a: { associated_person_ids?: string[] } | undefined): string[] | undefined => {
+      if (!a?.associated_person_ids) return undefined;
+      const slugs = a.associated_person_ids.map((id) => slugMap.get(id)).filter((s): s is string => !!s);
+      return slugs.length > 0 ? slugs : undefined;
+    };
+
     for (const ds of month.data.daySchedules) {
       const n = parseInt(ds.date.slice(8, 10), 10);
       const entry: MonthDayEntry = out[n] || { events: [] };
@@ -56,6 +62,7 @@ export const PrintMonthLive = ({ theme, lang = "en" }: Props) => {
             name: a.name,
             nameHe: a.name_he || a.name,
             at: ds.after_gan_time || a.default_time,
+            withSlugs: slugsForActivity(a),
           });
         }
       }
@@ -82,6 +89,7 @@ export const PrintMonthLive = ({ theme, lang = "en" }: Props) => {
           name,
           nameHe,
           at: sa.time || a?.default_time,
+          withSlugs: slugsForActivity(a),
         });
       }
       if (ss.family_dinner_person_id) {
@@ -93,7 +101,6 @@ export const PrintMonthLive = ({ theme, lang = "en" }: Props) => {
       out[n] = entry;
     }
 
-    // Recurring activities: append to each weekday matching, dedupe by name+time.
     for (let day = 1; day <= lastDay; day++) {
       const dow = new Date(yr, mi, day).getDay();
       const dayName = DAY_FULL[dow];
@@ -111,6 +118,7 @@ export const PrintMonthLive = ({ theme, lang = "en" }: Props) => {
           nameHe: a.name_he || a.name,
           at: a.default_time || undefined,
           isRecurring: true,
+          withSlugs: slugsForActivity(a),
         };
         const key = `${ev.name}|${ev.at || ""}`;
         if (!existingKeys.has(key)) {

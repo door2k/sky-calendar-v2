@@ -11,6 +11,7 @@ export interface MonthDayEvent {
   nameHe: string;
   at?: string;
   isRecurring?: boolean;
+  withSlugs?: string[];
 }
 
 export interface MonthDayEntry {
@@ -261,6 +262,15 @@ export const PrintMonth = ({
                               <div style={{ fontSize: 7.5, color: t.inkSoft, fontWeight: 600, fontFamily: t.fontHead }}>{ev.at}</div>
                             )}
                           </div>
+                          {ev.withSlugs && ev.withSlugs.length > 0 && (
+                            <div style={{ display: "flex", alignItems: "center" }}>
+                              {ev.withSlugs.slice(0, 3).map((slug, j) => (
+                                <div key={slug + j} style={{ marginInlineStart: j === 0 ? 0 : -6 }}>
+                                  <PersonAvatar id={slug} size={16} halo={false} theme={t} />
+                                </div>
+                              ))}
+                            </div>
+                          )}
                         </div>
                       ))}
                       {dinner && (

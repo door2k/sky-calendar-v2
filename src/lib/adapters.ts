@@ -65,11 +65,16 @@ function adaptActivity(
   db: DbActivity | undefined,
   customName: string | null | undefined,
   customNameHe: string | null | undefined,
-  at: string | null | undefined
+  at: string | null | undefined,
+  slugMap?: Map<string, string>
 ): Activity | null {
   const name = customName || db?.name || "";
   if (!name && !at) return null;
   const nameHe = customNameHe || db?.name_he || name;
+  const withSlugs =
+    db?.associated_person_ids && slugMap
+      ? db.associated_person_ids.map((id) => slugMap.get(id)).filter((s): s is string => !!s)
+      : undefined;
   return {
     id: db?.id,
     name,
@@ -77,6 +82,7 @@ function adaptActivity(
     at: at || db?.default_time || "",
     where: db?.address || "",
     icon: db?.icon || activityIconKey(name),
+    withSlugs: withSlugs && withSlugs.length > 0 ? withSlugs : undefined,
   };
 }
 
@@ -122,7 +128,7 @@ export function adaptWeekToDays(ctx: AdapterContext): Day[] {
       const activities: Activity[] =
         sat?.activities
           ?.map((sa: DbSaturdayActivity) =>
-            adaptActivity(activityMap.get(sa.activity_id), sa.custom_name, sa.custom_name_he, sa.time)
+            adaptActivity(activityMap.get(sa.activity_id), sa.custom_name, sa.custom_name_he, sa.time, slugMap)
           )
           .filter((a): a is Activity => !!a) || [];
 
@@ -146,7 +152,7 @@ export function adaptWeekToDays(ctx: AdapterContext): Day[] {
       const activities: Activity[] =
         lastFri?.activities
           ?.map((sa: DbSaturdayActivity) =>
-            adaptActivity(activityMap.get(sa.activity_id), sa.custom_name, sa.custom_name_he, sa.time)
+            adaptActivity(activityMap.get(sa.activity_id), sa.custom_name, sa.custom_name_he, sa.time, slugMap)
           )
           .filter((a): a is Activity => !!a) || [];
 
@@ -178,7 +184,7 @@ export function adaptWeekToDays(ctx: AdapterContext): Day[] {
 
     const ds = weekData.days[i];
     const after = ds?.after_gan_activity_id
-      ? adaptActivity(activityMap.get(ds.after_gan_activity_id), null, null, ds.after_gan_time)
+      ? adaptActivity(activityMap.get(ds.after_gan_activity_id), null, null, ds.after_gan_time, slugMap)
       : null;
 
     const ganLabel = ds?.gan_activity || "";
@@ -206,7 +212,7 @@ export function adaptWeekToDays(ctx: AdapterContext): Day[] {
           a.recurrence_day?.toLowerCase() === dayLabel.full &&
           a.id !== ds?.after_gan_activity_id
       )
-      .map((a) => adaptActivity(a, null, null, a.default_time))
+      .map((a) => adaptActivity(a, null, null, a.default_time, slugMap))
       .filter((a): a is Activity => !!a);
 
     days.push({
