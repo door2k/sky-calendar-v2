@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import type { Lang, Theme } from "../types";
-import { PrintMonth, type MonthDayEntry } from "./PrintMonth";
+import { PrintMonth, type MonthDayEntry, type MonthDayEvent } from "./PrintMonth";
 import { useMonthSchedule } from "../hooks/useSchedule";
 import { usePeople } from "../hooks/usePeople";
 import { useActivities } from "../hooks/useActivities";
@@ -44,56 +44,91 @@ export const PrintMonthLive = ({ theme, lang = "en" }: Props) => {
 
     for (const ds of month.data.daySchedules) {
       const n = parseInt(ds.date.slice(8, 10), 10);
-      const entry: MonthDayEntry = out[n] || {};
-      const personId = ds.pickup_person_id || ds.dropoff_person_id;
-      if (personId) entry.person = slugMap.get(personId);
+      const entry: MonthDayEntry = out[n] || { events: [] };
+      if (!entry.events) entry.events = [];
+      if (ds.dropoff_person_id) entry.dropoffSlug = slugMap.get(ds.dropoff_person_id);
+      if (ds.pickup_person_id) entry.pickupSlug = slugMap.get(ds.pickup_person_id);
       if (ds.after_gan_activity_id) {
         const a = activities.data.find((x) => x.id === ds.after_gan_activity_id);
-        if (a) entry.activityIcon = a.icon || activityIconKey(a.name);
+        if (a) {
+          entry.events.push({
+            icon: a.icon || activityIconKey(a.name),
+            name: a.name,
+            nameHe: a.name_he || a.name,
+            at: ds.after_gan_time || a.default_time,
+          });
+        }
       }
       if (ds.family_dinner_person_id) {
-        entry.dinnerHost = slugMap.get(ds.family_dinner_person_id);
+        entry.dinner = {
+          hostSlug: slugMap.get(ds.family_dinner_person_id) || "",
+          at: ds.family_dinner_time || undefined,
+        };
       }
       out[n] = entry;
     }
 
     for (const ss of month.data.saturdaySchedules) {
       const n = parseInt(ss.date.slice(8, 10), 10);
-      const entry: MonthDayEntry = out[n] || {};
-      if (ss.activities && ss.activities[0]) {
-        const a = activities.data.find((x) => x.id === ss.activities[0].activity_id);
-        if (a) entry.activityIcon = a.icon || activityIconKey(a.name);
+      const entry: MonthDayEntry = out[n] || { events: [] };
+      if (!entry.events) entry.events = [];
+      for (const sa of ss.activities || []) {
+        const a = activities.data.find((x) => x.id === sa.activity_id);
+        const name = sa.custom_name || a?.name || "";
+        const nameHe = sa.custom_name_he || a?.name_he || name;
+        if (!name) continue;
+        entry.events.push({
+          icon: a?.icon || activityIconKey(name),
+          name,
+          nameHe,
+          at: sa.time || a?.default_time,
+        });
       }
       if (ss.family_dinner_person_id) {
-        entry.dinnerHost = slugMap.get(ss.family_dinner_person_id);
+        entry.dinner = {
+          hostSlug: slugMap.get(ss.family_dinner_person_id) || "",
+          at: ss.family_dinner_time || undefined,
+        };
       }
       out[n] = entry;
     }
 
-    // Apply recurring activities to weekdays that don't already have an icon.
+    // Recurring activities: append to each weekday matching, dedupe by name+time.
     for (let day = 1; day <= lastDay; day++) {
       const dow = new Date(yr, mi, day).getDay();
       const dayName = DAY_FULL[dow];
       const recurring = activities.data.filter(
         (a) => a.is_recurring && a.recurrence_day?.toLowerCase() === dayName
       );
-      if (recurring.length) {
-        const entry: MonthDayEntry = out[day] || {};
-        if (!entry.activityIcon) {
-          entry.activityIcon = recurring[0].icon || activityIconKey(recurring[0].name);
+      if (recurring.length === 0) continue;
+      const entry: MonthDayEntry = out[day] || { events: [] };
+      if (!entry.events) entry.events = [];
+      const existingKeys = new Set(entry.events.map((e) => `${e.name}|${e.at || ""}`));
+      for (const a of recurring) {
+        const ev: MonthDayEvent = {
+          icon: a.icon || activityIconKey(a.name),
+          name: a.name,
+          nameHe: a.name_he || a.name,
+          at: a.default_time || undefined,
+          isRecurring: true,
+        };
+        const key = `${ev.name}|${ev.at || ""}`;
+        if (!existingKeys.has(key)) {
+          entry.events.push(ev);
+          existingKeys.add(key);
         }
-        out[day] = entry;
       }
+      out[day] = entry;
     }
+
     return out;
   }, [month.data, activities.data, slugMap, yr, mi]);
 
-  // Build a legend from the activity icons that actually appear this month.
   const legendIcons = useMemo(() => {
     if (!perDay || !activities.data) return undefined;
     const used = new Set<string>();
     for (const e of Object.values(perDay)) {
-      if (e.activityIcon) used.add(e.activityIcon);
+      if (e.events) for (const ev of e.events) used.add(ev.icon);
     }
     if (used.size === 0) return undefined;
     const map = new Map<string, { k: string; label: string }>();

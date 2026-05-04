@@ -5,10 +5,26 @@ import { Sticker } from "../components/Sticker";
 import { ActIcon } from "../components/ActIcon";
 import { Confetti } from "../components/Confetti";
 
+export interface MonthDayEvent {
+  icon: string;
+  name: string;
+  nameHe: string;
+  at?: string;
+  isRecurring?: boolean;
+}
+
 export interface MonthDayEntry {
+  /** legacy fallback for the demo render */
   person?: string;
+  /** legacy fallback for the demo render */
   activityIcon?: string;
+  /** legacy fallback for the demo render */
   dinnerHost?: string;
+
+  dropoffSlug?: string;
+  pickupSlug?: string;
+  events?: MonthDayEvent[];
+  dinner?: { hostSlug: string; at?: string };
 }
 
 interface Props {
@@ -65,9 +81,14 @@ export const PrintMonth = ({
     days.push({ n: n > 0 && n <= daysInMonth ? n : null, idx: i });
   }
 
-  const peopleAt = (n: number): string | undefined => perDay ? perDay[n]?.person : DEFAULT_PEOPLE[n];
-  const iconAt = (n: number): string | undefined => perDay ? perDay[n]?.activityIcon : DEFAULT_ACTS[n];
-  const dinnerHostAt = (n: number): string | undefined => perDay ? perDay[n]?.dinnerHost : DEFAULT_DINNERS[n];
+  const entryAt = (n: number): MonthDayEntry => {
+    if (perDay) return perDay[n] || {};
+    return {
+      person: DEFAULT_PEOPLE[n],
+      activityIcon: DEFAULT_ACTS[n],
+      dinnerHost: DEFAULT_DINNERS[n],
+    };
+  };
 
   return (
     <div
@@ -188,39 +209,87 @@ export const PrintMonth = ({
                 </div>
                 {isFri && <span style={{ fontSize: 14 }}>🕯</span>}
               </div>
-              <div style={{ flex: 1, display: "flex", flexDirection: "column", justifyContent: "flex-end", gap: 3, alignItems: "center" }}>
-                {peopleAt(n) && <PersonAvatar id={peopleAt(n)!} size={26} halo={false} theme={t} />}
-                {dinnerHostAt(n) && (
-                  <div
-                    style={{
-                      fontSize: 8.5,
-                      fontWeight: 700,
-                      fontFamily: t.fontHead,
-                      color: t.fridayAccent,
-                      background: `${t.fridayAccent}22`,
-                      padding: "1px 5px",
-                      borderRadius: 6,
-                      letterSpacing: 0.4,
-                    }}
-                  >
-                    🍽 {tx("dinner", "ארוחה")}
-                  </div>
-                )}
-                {iconAt(n) && (
-                  <div
-                    style={{
-                      display: "inline-flex",
-                      width: 18,
-                      height: 18,
-                      borderRadius: "50%",
-                      background: `${t.accent}33`,
-                      alignItems: "center",
-                      justifyContent: "center",
-                    }}
-                  >
-                    <ActIcon k={iconAt(n)!} size={11} color={t.accent} />
-                  </div>
-                )}
+              <div style={{ flex: 1, display: "flex", flexDirection: "column", justifyContent: "flex-start", gap: 3, alignItems: "stretch", marginTop: 3 }}>
+                {(() => {
+                  const e = entryAt(n);
+                  // People row: dropoff + pickup compact
+                  const dropSlug = e.dropoffSlug;
+                  const pickSlug = e.pickupSlug;
+                  const legacyPerson = !e.dropoffSlug && !e.pickupSlug && !e.events && !e.dinner ? e.person : undefined;
+                  const events = e.events || (e.activityIcon ? [{ icon: e.activityIcon, name: "", nameHe: "" }] : []);
+                  const dinner = e.dinner || (e.dinnerHost ? { hostSlug: e.dinnerHost } : undefined);
+                  return (
+                    <>
+                      {(dropSlug || pickSlug || legacyPerson) && (
+                        <div style={{ display: "flex", justifyContent: "center", gap: 4, alignItems: "center" }}>
+                          {dropSlug && (
+                            <div title="Drop-off" style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 1 }}>
+                              <span style={{ fontSize: 7, color: t.inkSoft, fontWeight: 700, fontFamily: t.fontHead, letterSpacing: 0.4 }}>↓</span>
+                              <PersonAvatar id={dropSlug} size={22} halo={false} theme={t} />
+                            </div>
+                          )}
+                          {pickSlug && (
+                            <div title="Pick-up" style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 1 }}>
+                              <span style={{ fontSize: 7, color: t.inkSoft, fontWeight: 700, fontFamily: t.fontHead, letterSpacing: 0.4 }}>↑</span>
+                              <PersonAvatar id={pickSlug} size={22} halo={false} theme={t} />
+                            </div>
+                          )}
+                          {legacyPerson && <PersonAvatar id={legacyPerson} size={22} halo={false} theme={t} />}
+                        </div>
+                      )}
+                      {events.map((ev, i) => (
+                        <div
+                          key={i}
+                          title={ev.name}
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: 4,
+                            padding: "2px 5px",
+                            background: ev.isRecurring ? `${t.accent2}1a` : `${t.accent}1a`,
+                            border: `1px ${ev.isRecurring ? "dashed" : "solid"} ${ev.isRecurring ? t.accent2 : t.accent}`,
+                            borderRadius: 8,
+                            minWidth: 0,
+                          }}
+                        >
+                          <ActIcon k={ev.icon} size={11} color={ev.isRecurring ? t.accent2 : t.accent} />
+                          <div style={{ flex: 1, minWidth: 0, lineHeight: 1.05 }}>
+                            <div style={{ fontSize: 8.5, fontWeight: 700, fontFamily: t.fontHead, color: t.ink, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                              {tx(ev.name || "", ev.nameHe || ev.name || "")}
+                            </div>
+                            {ev.at && (
+                              <div style={{ fontSize: 7.5, color: t.inkSoft, fontWeight: 600, fontFamily: t.fontHead }}>{ev.at}</div>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                      {dinner && (
+                        <div
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: 4,
+                            padding: "2px 5px",
+                            background: `${t.fridayAccent}1a`,
+                            border: `1px solid ${t.fridayAccent}`,
+                            borderRadius: 8,
+                          }}
+                          title="Friday dinner"
+                        >
+                          <PersonAvatar id={dinner.hostSlug} size={20} halo={false} theme={t} />
+                          <div style={{ flex: 1, minWidth: 0, lineHeight: 1.05 }}>
+                            <div style={{ fontSize: 8.5, fontWeight: 700, fontFamily: t.fontHead, color: t.fridayAccent }}>
+                              🍽 {tx("Dinner", "ארוחה")}
+                            </div>
+                            {dinner.at && (
+                              <div style={{ fontSize: 7.5, color: t.inkSoft, fontWeight: 600, fontFamily: t.fontHead }}>{dinner.at}</div>
+                            )}
+                          </div>
+                        </div>
+                      )}
+                    </>
+                  );
+                })()}
               </div>
             </div>
           );

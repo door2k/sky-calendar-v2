@@ -27,6 +27,7 @@ interface Props {
   lang?: Lang;
   avatarScale?: number;
   avatarHalo?: boolean;
+  onOpenPeople?: () => void;
 }
 
 const HE_MONTHS = [
@@ -44,7 +45,7 @@ const DAY_NAMES = [
   { en: "Sat", he: "שבת" },
 ];
 
-export const WebWeekViewLive = ({ theme, lang = "en", avatarScale = 1, avatarHalo = true }: Props) => {
+export const WebWeekViewLive = ({ theme, lang = "en", avatarScale = 1, avatarHalo = true, onOpenPeople }: Props) => {
   const [anchorDate, setAnchorDate] = useState<Date>(() => new Date());
   const [openIdx, setOpenIdx] = useState<number | null>(null);
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
@@ -213,6 +214,7 @@ export const WebWeekViewLive = ({ theme, lang = "en", avatarScale = 1, avatarHal
         chatMessages={chatMessages}
         onChatSend={handleChatSend}
         chatLoading={chatLoading}
+        onOpenPeople={onOpenPeople}
       />
       {modalCtx && !isSaturdayStyle && (
         <EditDayModal

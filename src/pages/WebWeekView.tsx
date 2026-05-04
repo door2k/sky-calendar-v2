@@ -22,6 +22,7 @@ interface Props {
   chatMessages?: ChatMessage[];
   onChatSend?: (text: string) => Promise<void> | void;
   chatLoading?: boolean;
+  onOpenPeople?: () => void;
 }
 
 const btnIcon = (t: Theme) => ({
@@ -96,6 +97,7 @@ export const WebWeekView = ({
   chatMessages,
   onChatSend,
   chatLoading,
+  onOpenPeople,
 }: Props) => {
   const t = theme;
   const week = days ?? WEEK;
@@ -206,6 +208,31 @@ export const WebWeekView = ({
         >
           ↺ {tx("Copy last week", "העתק שבוע שעבר")}
         </button>
+
+        {onOpenPeople && (
+          <button
+            title={tx("Manage people", "ניהול אנשים")}
+            onClick={onOpenPeople}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 6,
+              padding: "6px 12px",
+              borderRadius: 99,
+              border: `2px solid ${t.ink}`,
+              background: t.cardBg,
+              color: t.ink,
+              fontFamily: t.fontHead,
+              fontWeight: 700,
+              fontSize: 12,
+              cursor: "pointer",
+              whiteSpace: "nowrap",
+              boxShadow: `2px 2px 0 ${t.accent}`,
+            }}
+          >
+            👤 {tx("People", "אנשים")}
+          </button>
+        )}
 
         <ThemeBadgeRow t={t} />
       </header>

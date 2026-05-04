@@ -79,9 +79,9 @@ export default function App() {
     switch (view) {
       case "week":
         return live ? (
-          <WebWeekViewLive theme={theme} lang={lang} avatarScale={avatarScale} avatarHalo={avatarHalo} />
+          <WebWeekViewLive theme={theme} lang={lang} avatarScale={avatarScale} avatarHalo={avatarHalo} onOpenPeople={() => setView("people")} />
         ) : (
-          <WebWeekView theme={theme} lang={lang} avatarScale={avatarScale} avatarHalo={avatarHalo} />
+          <WebWeekView theme={theme} lang={lang} avatarScale={avatarScale} avatarHalo={avatarHalo} onOpenPeople={() => setView("people")} />
         );
       case "month":
         return live ? (
