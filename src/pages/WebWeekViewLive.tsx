@@ -111,8 +111,11 @@ export const WebWeekViewLive = ({ theme, lang = "en", avatarScale = 1, avatarHal
         });
         if (!res.ok) {
           const err = (await res.json().catch(() => ({}))) as { details?: string; error?: string };
-          const detail = err.details || err.error || `${res.status} ${res.statusText}`;
-          setChatMessages((h) => [...h, { role: "assistant", content: detail, isError: true }]);
+          const raw = err.details || err.error || `${res.status} ${res.statusText}`;
+          let pretty = raw;
+          const m = raw.match(/"message"\s*:\s*"([^"]+)"/);
+          if (m) pretty = m[1];
+          setChatMessages((h) => [...h, { role: "assistant", content: pretty, isError: true }]);
           return;
         }
         const { actions } = (await res.json()) as { actions: AssistantAction[] };
