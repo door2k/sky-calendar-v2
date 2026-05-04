@@ -19,6 +19,7 @@ interface Props {
   onThisWeek?: () => void;
   onCopyLastWeek?: () => void;
   onDayClick?: (dayIdx: number) => void;
+  onActivityClick?: (activityId: string) => void;
   chatMessages?: ChatMessage[];
   onChatSend?: (text: string) => Promise<void> | void;
   chatLoading?: boolean;
@@ -94,6 +95,7 @@ export const WebWeekView = ({
   onThisWeek,
   onCopyLastWeek,
   onDayClick,
+  onActivityClick,
   chatMessages,
   onChatSend,
   chatLoading,
@@ -258,6 +260,7 @@ export const WebWeekView = ({
             avatarScale={avatarScale}
             avatarHalo={avatarHalo}
             onClick={onDayClick ? () => onDayClick(i) : undefined}
+            onActivityClick={onActivityClick}
           />
         ))}
         {loading && (

@@ -36,6 +36,7 @@ export interface Person {
 }
 
 export interface Activity {
+  id?: string;
   name: string;
   nameHe: string;
   at: string;

@@ -71,6 +71,7 @@ function adaptActivity(
   if (!name && !at) return null;
   const nameHe = customNameHe || db?.name_he || name;
   return {
+    id: db?.id,
     name,
     nameHe,
     at: at || db?.default_time || "",

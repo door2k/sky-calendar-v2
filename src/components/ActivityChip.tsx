@@ -5,21 +5,29 @@ interface Props {
   t: Theme;
   a: Activity;
   lang: Lang;
+  onClick?: () => void;
+  recurring?: boolean;
 }
 
-export const ActivityChip = ({ t, a, lang }: Props) => {
+export const ActivityChip = ({ t, a, lang, onClick, recurring }: Props) => {
   const tx = (en: string, he: string) => (lang === "he" ? he : en);
+  const accent = recurring ? t.accent2 : t.accent;
   return (
     <div
+      onClick={onClick ? (e) => { e.stopPropagation(); onClick(); } : undefined}
+      role={onClick ? "button" : undefined}
+      tabIndex={onClick ? 0 : undefined}
+      onKeyDown={onClick ? (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); e.stopPropagation(); onClick(); } } : undefined}
       style={{
         background: t.cardBg,
-        border: `1.5px solid ${t.accent}`,
+        border: `1.5px ${recurring ? "dashed" : "solid"} ${accent}`,
         borderRadius: 10,
         padding: "6px 8px",
         display: "flex",
         alignItems: "center",
         gap: 6,
-        boxShadow: `2px 2px 0 ${t.accent}`,
+        boxShadow: `2px 2px 0 ${accent}`,
+        cursor: onClick ? "pointer" : "default",
       }}
     >
       <div
@@ -27,15 +35,15 @@ export const ActivityChip = ({ t, a, lang }: Props) => {
           width: 24,
           height: 24,
           borderRadius: "50%",
-          background: `${t.accent}22`,
+          background: `${accent}22`,
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          color: t.accent,
+          color: accent,
           flexShrink: 0,
         }}
       >
-        <ActIcon k={a.icon} size={14} color={t.accent} />
+        <ActIcon k={a.icon} size={14} color={accent} />
       </div>
       <div style={{ flex: 1, minWidth: 0, lineHeight: 1.15 }}>
         <div

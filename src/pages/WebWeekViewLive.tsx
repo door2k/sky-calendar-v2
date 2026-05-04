@@ -9,6 +9,7 @@ import { useRealtimeSchedule } from "../hooks/useRealtimeSchedule";
 import { adaptWeekToDays, todayIndex } from "../lib/adapters";
 import { EditDayModal } from "../components/EditDayModal";
 import { EditSaturdayModal } from "../components/EditSaturdayModal";
+import { EditActivityModal } from "../components/EditActivityModal";
 import type { ChatMessage } from "../components/AIStrip";
 
 interface AssistantAction {
@@ -48,6 +49,7 @@ const DAY_NAMES = [
 export const WebWeekViewLive = ({ theme, lang = "en", avatarScale = 1, avatarHalo = true, onOpenPeople }: Props) => {
   const [anchorDate, setAnchorDate] = useState<Date>(() => new Date());
   const [openIdx, setOpenIdx] = useState<number | null>(null);
+  const [openActivityId, setOpenActivityId] = useState<string | null>(null);
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
   const [chatLoading, setChatLoading] = useState(false);
   const weekStart = useMemo(() => startOfWeek(anchorDate, { weekStartsOn: 0 }), [anchorDate]);
@@ -211,6 +213,7 @@ export const WebWeekViewLive = ({ theme, lang = "en", avatarScale = 1, avatarHal
         onNextWeek={() => setAnchorDate((d) => addDays(d, 7))}
         onThisWeek={() => setAnchorDate(new Date())}
         onDayClick={handleDayClick}
+        onActivityClick={(id) => setOpenActivityId(id)}
         chatMessages={chatMessages}
         onChatSend={handleChatSend}
         chatLoading={chatLoading}
@@ -248,6 +251,16 @@ export const WebWeekViewLive = ({ theme, lang = "en", avatarScale = 1, avatarHal
           theme={theme}
           lang={lang}
           variant={openIdx === 6 ? "saturday" : "last-friday"}
+        />
+      )}
+      {openActivityId && people.data && activities.data && (
+        <EditActivityModal
+          open
+          onClose={() => setOpenActivityId(null)}
+          activity={activities.data.find((a) => a.id === openActivityId) || null}
+          dbPeople={people.data}
+          theme={theme}
+          lang={lang}
         />
       )}
     </>

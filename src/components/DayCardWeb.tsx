@@ -13,9 +13,10 @@ interface Props {
   avatarScale?: number;
   avatarHalo?: boolean;
   onClick?: () => void;
+  onActivityClick?: (activityId: string) => void;
 }
 
-export const DayCardWeb = ({ d, t, lang, isToday, dayIdx, avatarScale = 1, avatarHalo = true, onClick }: Props) => {
+export const DayCardWeb = ({ d, t, lang, isToday, dayIdx, avatarScale = 1, avatarHalo = true, onClick, onActivityClick }: Props) => {
   const sz = (px: number) => Math.round(px * avatarScale);
   const tint = t.dayTints[dayIdx];
   const tx = (en: string, he: string) => (lang === "he" ? he : en);
@@ -123,11 +124,35 @@ export const DayCardWeb = ({ d, t, lang, isToday, dayIdx, avatarScale = 1, avata
         </SlotRow>
       )}
 
-      {d.after && <ActivityChip t={t} a={d.after} lang={lang} />}
+      {d.after && (
+        <ActivityChip
+          t={t}
+          a={d.after}
+          lang={lang}
+          onClick={d.after.id && onActivityClick ? () => onActivityClick(d.after!.id!) : undefined}
+        />
+      )}
 
-      {d.recurring && d.recurring.map((a, i) => <ActivityChip key={`rec-${i}`} t={t} a={a} lang={lang} />)}
+      {d.recurring && d.recurring.map((a, i) => (
+        <ActivityChip
+          key={`rec-${i}`}
+          t={t}
+          a={a}
+          lang={lang}
+          recurring
+          onClick={a.id && onActivityClick ? () => onActivityClick(a.id!) : undefined}
+        />
+      ))}
 
-      {isSat && d.activities && d.activities.map((a, i) => <ActivityChip key={i} t={t} a={a} lang={lang} />)}
+      {isSat && d.activities && d.activities.map((a, i) => (
+        <ActivityChip
+          key={i}
+          t={t}
+          a={a}
+          lang={lang}
+          onClick={a.id && onActivityClick ? () => onActivityClick(a.id!) : undefined}
+        />
+      ))}
 
       {isFri && d.dinner && (
         <div
