@@ -41,7 +41,7 @@ export default function App() {
   const [avatarSize, setAvatarSizeState] = useState<number>(() => {
     if (typeof window === "undefined") return 56;
     const v = parseInt(localStorage.getItem("sky:avatarSize") || "", 10);
-    return v >= 28 && v <= 84 ? v : 56;
+    return v >= 28 && v <= 252 ? v : 56;
   });
   const [avatarHalo, setAvatarHaloState] = useState<boolean>(() => {
     if (typeof window === "undefined") return true;
@@ -306,7 +306,7 @@ function Toolbar({
           <input
             type="range"
             min={28}
-            max={84}
+            max={252}
             value={avatarSize}
             onChange={(e) => onAvatarSizeChange(Number(e.target.value))}
             style={{ width: 100 }}
