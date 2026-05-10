@@ -5,6 +5,8 @@ import { WebWeekView } from "./WebWeekView";
 import { useWeekSchedule, useUpdateDaySchedule, useUpdateSaturdaySchedule } from "../hooks/useSchedule";
 import { usePeople } from "../hooks/usePeople";
 import { useActivities } from "../hooks/useActivities";
+import { supabase } from "../lib/supabase";
+import type { DbDaySchedule, DbSaturdaySchedule } from "../lib/db-types";
 import { useRealtimeSchedule } from "../hooks/useRealtimeSchedule";
 import { adaptWeekToDays, todayIndex } from "../lib/adapters";
 import { EditDayModal } from "../components/EditDayModal";
@@ -90,6 +92,109 @@ export const WebWeekViewLive = ({ theme, lang = "en", avatarScale = 1, avatarHal
   const handleDayClick = (i: number) => {
     setOpenIdx(i);
   };
+
+  const handleCopyLastWeek = useCallback(async () => {
+    if (!activities.data) return;
+    const lastWeekStart = addDays(weekStart, -7);
+    const lastDates = Array.from({ length: 7 }, (_, i) => format(addDays(lastWeekStart, i), "yyyy-MM-dd"));
+    const newDates = Array.from({ length: 7 }, (_, i) => format(addDays(weekStart, i), "yyyy-MM-dd"));
+
+    const proceed = window.confirm(
+      lang === "he"
+        ? "להעתיק את כל המינויים מהשבוע שעבר? זה ידרוס את המינויים הקיימים בשבוע הזה (לא נעתיק פעילויות חוזרות שכבר מופיעות אוטומטית)."
+        : "Copy all assignments from last week? This overwrites this week's existing assignments. Recurring activities that already auto-appear will be skipped."
+    );
+    if (!proceed) return;
+
+    const dayNames = ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"];
+    const recurringMatchesDay = (activityId: string, dow: number) => {
+      const a = activities.data!.find((x) => x.id === activityId);
+      return !!(a?.is_recurring && a.recurrence_day?.toLowerCase() === dayNames[dow]);
+    };
+
+    setChatLoading(true);
+    setChatMessages((h) => [...h, { role: "user", content: lang === "he" ? "העתק שבוע שעבר" : "Copy last week" }]);
+
+    try {
+      const { data: lastDay, error: e1 } = await supabase
+        .from("day_schedules")
+        .select("*")
+        .in("date", lastDates.slice(0, 6));
+      if (e1) throw e1;
+      const lastSatRange = lastDates.slice(5);
+      const { data: lastSat, error: e2 } = await supabase
+        .from("saturday_schedules")
+        .select("*")
+        .in("date", lastSatRange);
+      if (e2) throw e2;
+
+      let copied = 0;
+      let skippedRecurring = 0;
+
+      for (let i = 0; i < 6; i++) {
+        const src = (lastDay as DbDaySchedule[] | null)?.find((d) => d.date === lastDates[i]);
+        if (!src) continue;
+        let after_gan_activity_id: string | null = src.after_gan_activity_id ?? null;
+        let after_gan_time: string | null = src.after_gan_time ?? null;
+        if (after_gan_activity_id && recurringMatchesDay(after_gan_activity_id, i)) {
+          after_gan_activity_id = null;
+          after_gan_time = null;
+          skippedRecurring++;
+        }
+        await updateDay.mutateAsync({
+          date: newDates[i],
+          dropoff_person_id: src.dropoff_person_id ?? null,
+          pickup_person_id: src.pickup_person_id ?? null,
+          bedtime_person_id: src.bedtime_person_id ?? null,
+          gan_activity: src.gan_activity ?? null,
+          gan_activity_he: src.gan_activity_he ?? null,
+          is_no_gan: !!src.is_no_gan,
+          no_gan_reason: src.no_gan_reason ?? null,
+          no_gan_reason_he: src.no_gan_reason_he ?? null,
+          after_gan_activity_id,
+          after_gan_time,
+          family_dinner_person_id: src.family_dinner_person_id ?? null,
+          family_dinner_time: src.family_dinner_time ?? null,
+          notes: src.notes ?? null,
+          notes_he: src.notes_he ?? null,
+        });
+        copied++;
+      }
+
+      for (const ss of (lastSat as DbSaturdaySchedule[] | null) || []) {
+        const offset = lastDates.indexOf(ss.date);
+        if (offset < 0) continue;
+        const filteredActivities = (ss.activities || []).filter((sa) => {
+          if (sa.activity_id && recurringMatchesDay(sa.activity_id, offset)) {
+            skippedRecurring++;
+            return false;
+          }
+          return true;
+        });
+        await updateSat.mutateAsync({
+          date: newDates[offset],
+          activities: filteredActivities,
+          notes: ss.notes ?? undefined,
+          family_dinner_person_id: ss.family_dinner_person_id ?? undefined,
+          family_dinner_time: ss.family_dinner_time ?? undefined,
+        });
+        copied++;
+      }
+
+      const summary =
+        lang === "he"
+          ? `הועתקו ${copied} ימים מהשבוע שעבר${skippedRecurring ? ` (דילוג על ${skippedRecurring} פעילויות חוזרות)` : ""}.`
+          : `Copied ${copied} days from last week${skippedRecurring ? ` (skipped ${skippedRecurring} recurring item${skippedRecurring === 1 ? "" : "s"})` : ""}.`;
+      setChatMessages((h) => [...h, { role: "assistant", content: summary }]);
+    } catch (err) {
+      setChatMessages((h) => [
+        ...h,
+        { role: "assistant", content: err instanceof Error ? err.message : String(err), isError: true },
+      ]);
+    } finally {
+      setChatLoading(false);
+    }
+  }, [activities.data, weekStart, lang, updateDay, updateSat]);
 
   const handleChatSend = useCallback(
     async (text: string) => {
@@ -212,6 +317,7 @@ export const WebWeekViewLive = ({ theme, lang = "en", avatarScale = 1, avatarHal
         onPrevWeek={() => setAnchorDate((d) => addDays(d, -7))}
         onNextWeek={() => setAnchorDate((d) => addDays(d, 7))}
         onThisWeek={() => setAnchorDate(new Date())}
+        onCopyLastWeek={handleCopyLastWeek}
         onDayClick={handleDayClick}
         onActivityClick={(id) => setOpenActivityId(id)}
         chatMessages={chatMessages}
