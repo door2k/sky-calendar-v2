@@ -31,6 +31,7 @@ interface Props {
   avatarScale?: number;
   avatarHalo?: boolean;
   onOpenPeople?: () => void;
+  readOnly?: boolean;
 }
 
 const HE_MONTHS = [
@@ -48,7 +49,7 @@ const DAY_NAMES = [
   { en: "Sat", he: "שבת" },
 ];
 
-export const WebWeekViewLive = ({ theme, lang = "en", avatarScale = 1, avatarHalo = true, onOpenPeople }: Props) => {
+export const WebWeekViewLive = ({ theme, lang = "en", avatarScale = 1, avatarHalo = true, onOpenPeople, readOnly = false }: Props) => {
   const [anchorDate, setAnchorDate] = useState<Date>(() => new Date());
   const [openIdx, setOpenIdx] = useState<number | null>(null);
   const [openActivityId, setOpenActivityId] = useState<string | null>(null);
@@ -317,13 +318,14 @@ export const WebWeekViewLive = ({ theme, lang = "en", avatarScale = 1, avatarHal
         onPrevWeek={() => setAnchorDate((d) => addDays(d, -7))}
         onNextWeek={() => setAnchorDate((d) => addDays(d, 7))}
         onThisWeek={() => setAnchorDate(new Date())}
-        onCopyLastWeek={handleCopyLastWeek}
-        onDayClick={handleDayClick}
-        onActivityClick={(id) => setOpenActivityId(id)}
-        chatMessages={chatMessages}
-        onChatSend={handleChatSend}
-        chatLoading={chatLoading}
+        onCopyLastWeek={readOnly ? undefined : handleCopyLastWeek}
+        onDayClick={readOnly ? undefined : handleDayClick}
+        onActivityClick={readOnly ? undefined : (id) => setOpenActivityId(id)}
+        chatMessages={readOnly ? undefined : chatMessages}
+        onChatSend={readOnly ? undefined : handleChatSend}
+        chatLoading={readOnly ? undefined : chatLoading}
         onOpenPeople={onOpenPeople}
+        hideAIStrip={readOnly}
       />
       {modalCtx && !isSaturdayStyle && (
         <EditDayModal

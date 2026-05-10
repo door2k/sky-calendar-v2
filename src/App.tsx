@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { Lang } from "./types";
 import { THEMES } from "./themes";
 import { WebWeekView } from "./pages/WebWeekView";
@@ -34,10 +34,30 @@ function readDemoMode(): boolean {
   return localStorage.getItem("sky:demo") === "1";
 }
 
+const VIEW_KEYS = new Set(["week", "month", "people", "print-week", "print-month", "print-combined"]);
+
+function readInitialUrlState() {
+  if (typeof window === "undefined") {
+    return { lang: "en" as Lang, view: "week" as ViewKey, themeKey: "pup", viewer: false };
+  }
+  const params = new URLSearchParams(window.location.search);
+  const langParam = params.get("lang");
+  const viewParam = params.get("view");
+  const themeParam = params.get("theme");
+  return {
+    lang: (langParam === "he" ? "he" : "en") as Lang,
+    view: (viewParam && VIEW_KEYS.has(viewParam) ? viewParam : "week") as ViewKey,
+    themeKey: themeParam && THEMES[themeParam] ? themeParam : "pup",
+    viewer: params.get("viewer") === "1",
+  };
+}
+
 export default function App() {
-  const [themeKey, setThemeKey] = useState<string>("pup");
-  const [lang, setLang] = useState<Lang>("en");
-  const [view, setView] = useState<ViewKey>("week");
+  const initial = readInitialUrlState();
+  const [themeKey, setThemeKey] = useState<string>(initial.themeKey);
+  const [lang, setLang] = useState<Lang>(initial.lang);
+  const [view, setView] = useState<ViewKey>(initial.view);
+  const [viewer] = useState<boolean>(initial.viewer);
   const [avatarSizes, setAvatarSizes] = useState<Record<string, number>>(() => {
     if (typeof window === "undefined") return {};
     try {
@@ -85,6 +105,34 @@ export default function App() {
     }
   };
 
+  // Viewer mode locks people view out — redirect.
+  useEffect(() => {
+    if (viewer && view === "people") setView("week");
+  }, [viewer, view]);
+
+  // Keep URL in sync with shareable state. Only writes when values differ
+  // from what's already in the URL so we don't churn history.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const params = new URLSearchParams(window.location.search);
+    const apply = (key: string, value: string | null, defaultValue: string) => {
+      if (value === null || value === defaultValue) {
+        params.delete(key);
+      } else {
+        params.set(key, value);
+      }
+    };
+    apply("lang", lang, "en");
+    apply("view", view, "week");
+    apply("theme", themeKey, "pup");
+    if (viewer) params.set("viewer", "1"); else params.delete("viewer");
+    const qs = params.toString();
+    const next = `${window.location.pathname}${qs ? "?" + qs : ""}${window.location.hash}`;
+    if (next !== window.location.pathname + window.location.search + window.location.hash) {
+      window.history.replaceState({}, "", next);
+    }
+  }, [lang, view, themeKey, viewer]);
+
   const theme = THEMES[themeKey];
   const avatarScale = avatarSize / 56;
   const live = !demo;
@@ -93,9 +141,9 @@ export default function App() {
     switch (view) {
       case "week":
         return live ? (
-          <WebWeekViewLive theme={theme} lang={lang} avatarScale={avatarScale} avatarHalo={avatarHalo} onOpenPeople={() => setView("people")} />
+          <WebWeekViewLive theme={theme} lang={lang} avatarScale={avatarScale} avatarHalo={avatarHalo} onOpenPeople={viewer ? undefined : () => setView("people")} readOnly={viewer} />
         ) : (
-          <WebWeekView theme={theme} lang={lang} avatarScale={avatarScale} avatarHalo={avatarHalo} onOpenPeople={() => setView("people")} />
+          <WebWeekView theme={theme} lang={lang} avatarScale={avatarScale} avatarHalo={avatarHalo} onOpenPeople={viewer ? undefined : () => setView("people")} />
         );
       case "month":
         return live ? (
@@ -145,6 +193,7 @@ export default function App() {
         onDemoChange={setDemoPersisted}
         showDevControls={showDevControls}
         onToggleDevControls={() => setShowDevControls((v) => !v)}
+        viewer={viewer}
       />
       <main
         style={{
@@ -191,6 +240,7 @@ interface ToolbarProps {
   onDemoChange: (b: boolean) => void;
   showDevControls: boolean;
   onToggleDevControls: () => void;
+  viewer: boolean;
 }
 
 function Toolbar({
@@ -208,7 +258,21 @@ function Toolbar({
   onDemoChange,
   showDevControls,
   onToggleDevControls,
+  viewer,
 }: ToolbarProps) {
+  const visibleViews = viewer ? VIEWS.filter((v) => v.key !== "people") : VIEWS;
+  const handleShareViewer = async () => {
+    if (typeof window === "undefined") return;
+    const params = new URLSearchParams(window.location.search);
+    params.set("viewer", "1");
+    const url = `${window.location.origin}${window.location.pathname}?${params.toString()}`;
+    try {
+      await navigator.clipboard.writeText(url);
+      alert(lang === "he" ? "קישור צופה הועתק" : "Viewer link copied");
+    } catch {
+      window.prompt(lang === "he" ? "העתק קישור צופה:" : "Copy viewer link:", url);
+    }
+  };
   const labelStyle: React.CSSProperties = {
     fontSize: 10,
     fontWeight: 600,
@@ -235,7 +299,25 @@ function Toolbar({
     >
       <div style={{ fontWeight: 700, letterSpacing: -0.3, fontSize: 14 }}>Sky's Calendar</div>
 
-      {demo && (
+      {viewer && (
+        <span
+          style={{
+            fontSize: 10,
+            fontWeight: 800,
+            letterSpacing: 1.5,
+            padding: "3px 8px",
+            borderRadius: 99,
+            background: "rgba(120,180,255,.18)",
+            color: "#7ab4ff",
+            border: "1px solid rgba(120,180,255,.4)",
+          }}
+          title="Read-only viewer link — drop ?viewer=1 to edit"
+        >
+          VIEWER
+        </span>
+      )}
+
+      {!viewer && demo && (
         <span
           style={{
             fontSize: 10,
@@ -259,7 +341,7 @@ function Toolbar({
         onChange={(e) => onViewChange(e.target.value as ViewKey)}
         style={selStyle}
       >
-        {VIEWS.map((v) => (
+        {visibleViews.map((v) => (
           <option key={v.key} value={v.key}>
             {lang === "he" ? v.labelHe : v.label}
           </option>
@@ -334,24 +416,26 @@ function Toolbar({
             Halo
           </label>
 
-          <label
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 6,
-              fontSize: 12,
-              color: demo ? "#f5b450" : "rgba(255,255,255,.7)",
-              fontWeight: demo ? 700 : 400,
-              padding: "3px 8px",
-              borderRadius: 6,
-              background: demo ? "rgba(245,180,80,.12)" : "transparent",
-              border: demo ? "1px solid rgba(245,180,80,.4)" : "1px solid transparent",
-            }}
-            title="Show sample/demo data instead of real schedule"
-          >
-            <input type="checkbox" checked={demo} onChange={(e) => onDemoChange(e.target.checked)} />
-            DEMO
-          </label>
+          {!viewer && (
+            <label
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 6,
+                fontSize: 12,
+                color: demo ? "#f5b450" : "rgba(255,255,255,.7)",
+                fontWeight: demo ? 700 : 400,
+                padding: "3px 8px",
+                borderRadius: 6,
+                background: demo ? "rgba(245,180,80,.12)" : "transparent",
+                border: demo ? "1px solid rgba(245,180,80,.4)" : "1px solid transparent",
+              }}
+              title="Show sample/demo data instead of real schedule"
+            >
+              <input type="checkbox" checked={demo} onChange={(e) => onDemoChange(e.target.checked)} />
+              DEMO
+            </label>
+          )}
         </>
       )}
 
@@ -372,6 +456,24 @@ function Toolbar({
       >
         ⚙
       </button>
+      {!viewer && (
+        <button
+          onClick={handleShareViewer}
+          title={lang === "he" ? "העתק קישור צופה (לקריאה בלבד)" : "Copy a read-only viewer link"}
+          style={{
+            padding: "5px 12px",
+            background: "rgba(120,180,255,.12)",
+            border: "1px solid rgba(120,180,255,.3)",
+            color: "#7ab4ff",
+            borderRadius: 6,
+            cursor: "pointer",
+            fontSize: 12,
+            fontWeight: 600,
+          }}
+        >
+          {lang === "he" ? "↗ צופה" : "↗ Share Viewer"}
+        </button>
+      )}
       <button
         onClick={() => window.print()}
         style={{

@@ -24,6 +24,7 @@ interface Props {
   onChatSend?: (text: string) => Promise<void> | void;
   chatLoading?: boolean;
   onOpenPeople?: () => void;
+  hideAIStrip?: boolean;
 }
 
 const btnIcon = (t: Theme) => ({
@@ -100,6 +101,7 @@ export const WebWeekView = ({
   onChatSend,
   chatLoading,
   onOpenPeople,
+  hideAIStrip,
 }: Props) => {
   const t = theme;
   const week = days ?? WEEK;
@@ -189,27 +191,29 @@ export const WebWeekView = ({
           <button style={btnIcon(t)} onClick={onNextWeek}>›</button>
         </div>
 
-        <button
-          title={tx("Copy from last week", "העתק מהשבוע שעבר")}
-          onClick={onCopyLastWeek}
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 6,
-            padding: "6px 12px",
-            borderRadius: 99,
-            border: `1.5px dashed ${t.accent}`,
-            background: `${t.accent}11`,
-            color: t.accent,
-            fontFamily: t.fontHead,
-            fontWeight: 700,
-            fontSize: 12,
-            cursor: "pointer",
-            whiteSpace: "nowrap",
-          }}
-        >
-          ↺ {tx("Copy last week", "העתק שבוע שעבר")}
-        </button>
+        {onCopyLastWeek && (
+          <button
+            title={tx("Copy from last week", "העתק מהשבוע שעבר")}
+            onClick={onCopyLastWeek}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 6,
+              padding: "6px 12px",
+              borderRadius: 99,
+              border: `1.5px dashed ${t.accent}`,
+              background: `${t.accent}11`,
+              color: t.accent,
+              fontFamily: t.fontHead,
+              fontWeight: 700,
+              fontSize: 12,
+              cursor: "pointer",
+              whiteSpace: "nowrap",
+            }}
+          >
+            ↺ {tx("Copy last week", "העתק שבוע שעבר")}
+          </button>
+        )}
 
         {onOpenPeople && (
           <button
@@ -278,7 +282,9 @@ export const WebWeekView = ({
         )}
       </div>
 
-      <AIStrip t={t} lang={lang} messages={chatMessages} onSend={onChatSend} isLoading={chatLoading} />
+      {!hideAIStrip && (
+        <AIStrip t={t} lang={lang} messages={chatMessages} onSend={onChatSend} isLoading={chatLoading} />
+      )}
     </div>
   );
 };
