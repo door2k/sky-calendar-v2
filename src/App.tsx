@@ -38,10 +38,14 @@ export default function App() {
   const [themeKey, setThemeKey] = useState<string>("pup");
   const [lang, setLang] = useState<Lang>("en");
   const [view, setView] = useState<ViewKey>("week");
-  const [avatarSize, setAvatarSizeState] = useState<number>(() => {
-    if (typeof window === "undefined") return 56;
-    const v = parseInt(localStorage.getItem("sky:avatarSize") || "", 10);
-    return v >= 28 && v <= 252 ? v : 56;
+  const [avatarSizes, setAvatarSizes] = useState<Record<string, number>>(() => {
+    if (typeof window === "undefined") return {};
+    try {
+      const stored = JSON.parse(localStorage.getItem("sky:avatarSizes") || "{}");
+      return typeof stored === "object" && stored !== null ? stored : {};
+    } catch {
+      return {};
+    }
   });
   const [avatarHalo, setAvatarHaloState] = useState<boolean>(() => {
     if (typeof window === "undefined") return true;
@@ -49,9 +53,19 @@ export default function App() {
     return v === null ? true : v === "1";
   });
 
+  const avatarSize = (() => {
+    const v = avatarSizes[view];
+    return v && v >= 28 && v <= 252 ? v : 56;
+  })();
+
   const setAvatarSize = (n: number) => {
-    setAvatarSizeState(n);
-    if (typeof window !== "undefined") localStorage.setItem("sky:avatarSize", String(n));
+    const next = { ...avatarSizes, [view]: n };
+    setAvatarSizes(next);
+    if (typeof window !== "undefined") {
+      localStorage.setItem("sky:avatarSizes", JSON.stringify(next));
+      // Also keep the legacy key for back-compat with anything still reading it.
+      localStorage.removeItem("sky:avatarSize");
+    }
   };
   const setAvatarHalo = (b: boolean) => {
     setAvatarHaloState(b);
