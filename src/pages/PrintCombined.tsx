@@ -16,9 +16,11 @@ interface Props {
   monthIndex?: number; // 0-11
   todayN?: number; // day-of-month to highlight
   monthEntries?: Record<number, { hasSchedule?: boolean; recurringIcons?: string[]; isFridayDinner?: boolean }>;
+  avatarScale?: number;
 }
 
-const CombinedDayCard = ({ d, t, lang, dayIdx }: { d: Day; t: Theme; lang: Lang; dayIdx: number }) => {
+const CombinedDayCard = ({ d, t, lang, dayIdx, avatarScale = 1 }: { d: Day; t: Theme; lang: Lang; dayIdx: number; avatarScale?: number }) => {
+  const sz = (n: number) => Math.round(n * avatarScale);
   const tx = (en: string, he: string) => (lang === "he" ? he : en);
   const tint = t.dayTints[dayIdx];
   const isFri = !!d.isFriday;
@@ -58,14 +60,14 @@ const CombinedDayCard = ({ d, t, lang, dayIdx }: { d: Day; t: Theme; lang: Lang;
       {!isSat && d.dropoff && (
         <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 1 }}>
           <div style={{ fontSize: 7, fontWeight: 700, letterSpacing: 0.8, color: t.inkSoft, fontFamily: t.fontHead }}>↓</div>
-          <PersonAvatar id={d.dropoff.by} size={28} halo={true} theme={t} />
+          <PersonAvatar id={d.dropoff.by} size={sz(28)} halo={true} theme={t} />
         </div>
       )}
 
       {!isSat && d.pickup && (
         <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 1 }}>
           <div style={{ fontSize: 7, fontWeight: 700, letterSpacing: 0.8, color: t.inkSoft, fontFamily: t.fontHead }}>↑</div>
-          <PersonAvatar id={d.pickup.by} size={28} halo={false} theme={t} />
+          <PersonAvatar id={d.pickup.by} size={sz(28)} halo={false} theme={t} />
         </div>
       )}
 
@@ -95,7 +97,7 @@ const CombinedDayCard = ({ d, t, lang, dayIdx }: { d: Day; t: Theme; lang: Lang;
             <div style={{ display: "flex", alignItems: "center", marginTop: 1 }}>
               {d.after.withSlugs.slice(0, 3).map((slug, j) => (
                 <div key={slug + j} style={{ marginInlineStart: j === 0 ? 0 : -6 }}>
-                  <PersonAvatar id={slug} size={16} halo={false} theme={t} />
+                  <PersonAvatar id={slug} size={sz(16)} halo={false} theme={t} />
                 </div>
               ))}
             </div>
@@ -130,7 +132,7 @@ const CombinedDayCard = ({ d, t, lang, dayIdx }: { d: Day; t: Theme; lang: Lang;
             <div style={{ display: "flex", alignItems: "center", marginTop: 1 }}>
               {a.withSlugs.slice(0, 3).map((slug, j) => (
                 <div key={slug + j} style={{ marginInlineStart: j === 0 ? 0 : -6 }}>
-                  <PersonAvatar id={slug} size={16} halo={false} theme={t} />
+                  <PersonAvatar id={slug} size={sz(16)} halo={false} theme={t} />
                 </div>
               ))}
             </div>
@@ -181,7 +183,7 @@ const CombinedDayCard = ({ d, t, lang, dayIdx }: { d: Day; t: Theme; lang: Lang;
           <div style={{ fontSize: 7, fontWeight: 700, letterSpacing: 0.6, color: t.fridayAccent, fontFamily: t.fontHead }}>
             🍽 {d.dinner.at}
           </div>
-          <PersonAvatar id={d.dinner.host} size={28} halo={true} theme={{ ...t, halo: t.fridayAccent }} />
+          <PersonAvatar id={d.dinner.host} size={sz(28)} halo={true} theme={{ ...t, halo: t.fridayAccent }} />
         </div>
       )}
     </div>
@@ -198,6 +200,7 @@ export const PrintCombined = ({
   monthIndex,
   todayN,
   monthEntries,
+  avatarScale = 1,
 }: Props) => {
   const t = { ...theme, paper: "#ffffff", paperDeep: "#faf6ee", ink: "#1a1410", inkSoft: "#5a4a38", cardBg: "#ffffff" };
   const tx = (en: string, he: string) => (lang === "he" ? he : en);
@@ -270,7 +273,7 @@ export const PrintCombined = ({
           ★ {tx("This Week", "השבוע")}
         </div>
         <div style={{ flex: 1, display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 6, minHeight: 0 }}>
-          {week.map((d, i) => <CombinedDayCard key={`${d.day}-${i}`} d={d} t={t} lang={lang} dayIdx={i} />)}
+          {week.map((d, i) => <CombinedDayCard key={`${d.day}-${i}`} d={d} t={t} lang={lang} dayIdx={i} avatarScale={avatarScale} />)}
         </div>
       </div>
 

@@ -99,15 +99,15 @@ export default function App() {
         );
       case "print-month":
         return live ? (
-          <PrintMonthLive theme={theme} lang={lang} />
+          <PrintMonthLive theme={theme} lang={lang} avatarScale={avatarScale} />
         ) : (
-          <PrintMonth theme={theme} lang={lang} />
+          <PrintMonth theme={theme} lang={lang} avatarScale={avatarScale} />
         );
       case "print-combined":
         return live ? (
-          <PrintCombinedLive theme={theme} lang={lang} />
+          <PrintCombinedLive theme={theme} lang={lang} avatarScale={avatarScale} />
         ) : (
-          <PrintCombined theme={theme} lang={lang} />
+          <PrintCombined theme={theme} lang={lang} avatarScale={avatarScale} />
         );
     }
   };

@@ -38,6 +38,7 @@ interface Props {
   monthLabelEn?: string;
   monthLabelHe?: string;
   legendIcons?: { k: string; label: string }[];
+  avatarScale?: number;
 }
 
 const DEFAULT_PEOPLE: Record<number, string> = {
@@ -60,9 +61,11 @@ export const PrintMonth = ({
   monthLabelEn,
   monthLabelHe,
   legendIcons,
+  avatarScale = 1,
 }: Props) => {
   const t = { ...theme, paper: "#ffffff", paperDeep: "#faf6ee", ink: "#1a1410", inkSoft: "#5a4a38", cardBg: "#ffffff" };
   const tx = (en: string, he: string) => (lang === "he" ? he : en);
+  const sz = (n: number) => Math.round(n * avatarScale);
   const monthLabels = lang === "he" ? ["א'", "ב'", "ג'", "ד'", "ה'", "ו'", "ש'"] : ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
   const yr = year ?? 2026;
@@ -226,16 +229,16 @@ export const PrintMonth = ({
                           {dropSlug && (
                             <div title="Drop-off" style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 1 }}>
                               <span style={{ fontSize: 7, color: t.inkSoft, fontWeight: 700, fontFamily: t.fontHead, letterSpacing: 0.4 }}>↓</span>
-                              <PersonAvatar id={dropSlug} size={22} halo={false} theme={t} />
+                              <PersonAvatar id={dropSlug} size={sz(22)} halo={false} theme={t} />
                             </div>
                           )}
                           {pickSlug && (
                             <div title="Pick-up" style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 1 }}>
                               <span style={{ fontSize: 7, color: t.inkSoft, fontWeight: 700, fontFamily: t.fontHead, letterSpacing: 0.4 }}>↑</span>
-                              <PersonAvatar id={pickSlug} size={22} halo={false} theme={t} />
+                              <PersonAvatar id={pickSlug} size={sz(22)} halo={false} theme={t} />
                             </div>
                           )}
-                          {legacyPerson && <PersonAvatar id={legacyPerson} size={22} halo={false} theme={t} />}
+                          {legacyPerson && <PersonAvatar id={legacyPerson} size={sz(22)} halo={false} theme={t} />}
                         </div>
                       )}
                       {events.map((ev, i) => (
@@ -266,7 +269,7 @@ export const PrintMonth = ({
                             <div style={{ display: "flex", alignItems: "center" }}>
                               {ev.withSlugs.slice(0, 3).map((slug, j) => (
                                 <div key={slug + j} style={{ marginInlineStart: j === 0 ? 0 : -6 }}>
-                                  <PersonAvatar id={slug} size={16} halo={false} theme={t} />
+                                  <PersonAvatar id={slug} size={sz(16)} halo={false} theme={t} />
                                 </div>
                               ))}
                             </div>
@@ -286,7 +289,7 @@ export const PrintMonth = ({
                           }}
                           title="Friday dinner"
                         >
-                          <PersonAvatar id={dinner.hostSlug} size={20} halo={false} theme={t} />
+                          <PersonAvatar id={dinner.hostSlug} size={sz(20)} halo={false} theme={t} />
                           <div style={{ flex: 1, minWidth: 0, lineHeight: 1.05 }}>
                             <div style={{ fontSize: 8.5, fontWeight: 700, fontFamily: t.fontHead, color: t.fridayAccent }}>
                               🍽 {tx("Dinner", "ארוחה")}

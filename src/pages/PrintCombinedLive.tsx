@@ -11,6 +11,7 @@ import { activityIconKey } from "../lib/activityIcon";
 interface Props {
   theme: Theme;
   lang?: Lang;
+  avatarScale?: number;
 }
 
 const HE_MONTHS = [
@@ -23,7 +24,7 @@ const EN_MONTHS = [
   "July", "August", "September", "October", "November", "December",
 ];
 
-export const PrintCombinedLive = ({ theme, lang = "en" }: Props) => {
+export const PrintCombinedLive = ({ theme, lang = "en", avatarScale = 1 }: Props) => {
   const today = useMemo(() => new Date(), []);
   const weekStart = useMemo(() => startOfWeek(today, { weekStartsOn: 0 }), [today]);
 
@@ -101,6 +102,7 @@ export const PrintCombinedLive = ({ theme, lang = "en" }: Props) => {
       monthIndex={today.getMonth()}
       todayN={today.getDate()}
       monthEntries={monthEntries}
+      avatarScale={avatarScale}
     />
   );
 };

@@ -10,6 +10,7 @@ import { activityIconKey } from "../lib/activityIcon";
 interface Props {
   theme: Theme;
   lang?: Lang;
+  avatarScale?: number;
 }
 
 const HE_MONTHS = [
@@ -23,7 +24,7 @@ const EN_MONTHS = [
 
 const DAY_FULL = ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"];
 
-export const PrintMonthLive = ({ theme, lang = "en" }: Props) => {
+export const PrintMonthLive = ({ theme, lang = "en", avatarScale = 1 }: Props) => {
   const today = useMemo(() => new Date(), []);
   const yr = today.getFullYear();
   const mi = today.getMonth();
@@ -160,6 +161,7 @@ export const PrintMonthLive = ({ theme, lang = "en" }: Props) => {
       monthLabelEn={`${EN_MONTHS[mi]} ${yr}`}
       monthLabelHe={`${HE_MONTHS[mi]} ${yr}`}
       legendIcons={legendIcons}
+      avatarScale={avatarScale}
     />
   );
 };
