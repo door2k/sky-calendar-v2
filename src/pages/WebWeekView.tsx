@@ -4,7 +4,7 @@ import { WEEK } from "../data/week";
 import { DayCardWeb } from "../components/DayCardWeb";
 import { AIStrip, type ChatMessage } from "../components/AIStrip";
 import { Confetti } from "../components/Confetti";
-import { MascotCluster } from "../components/Mascot";
+import { MascotScatter } from "../components/Mascot";
 
 interface Props {
   theme: Theme;
@@ -264,7 +264,7 @@ export const WebWeekView = ({
         <div style={{ position: "absolute", inset: 0, pointerEvents: "none", opacity: 0.35 }}>
           <Confetti t={t} count={6} seed={2} />
         </div>
-        <MascotCluster t={t} position={lang === "he" ? "bottom-left" : "bottom-right"} />
+        <MascotScatter t={t} lang={lang} />
         {week.map((d, i) => (
           <DayCardWeb
             key={`${d.date}-${i}`}

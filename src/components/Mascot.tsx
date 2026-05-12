@@ -45,48 +45,55 @@ export const Mascot = ({ t, position = "bottom-right", size = 80, rotate, index 
   );
 };
 
-/** Floating themed motif characters — like Confetti but bigger and corner-clustered. */
-export const MascotCluster = ({ t, position = "bottom-right" }: { t: Theme; position?: Props["position"] }) => {
+interface ScatterSpot {
+  /** vertical: top|bottom value, percentage from edge */
+  v: { edge: "top" | "bottom"; pct: number };
+  /** horizontal: left|right value, percentage from edge */
+  h: { edge: "left" | "right"; pct: number };
+  size: number;
+  rotate: number;
+}
+
+/** Default scatter for 3 mascots — distinct corners/edges so they read as separate */
+const DEFAULT_SPOTS: ScatterSpot[] = [
+  { v: { edge: "top", pct: 8 },    h: { edge: "left",  pct: 1 },  size: 38, rotate: -12 },
+  { v: { edge: "top", pct: 45 },   h: { edge: "right", pct: 1 },  size: 44, rotate: 14 },
+  { v: { edge: "bottom", pct: 4 }, h: { edge: "left",  pct: 38 }, size: 36, rotate: -8 },
+];
+
+/** Themed mascots scattered around the container at distinct positions */
+export const MascotScatter = ({ t, lang }: { t: Theme; lang?: "en" | "he" }) => {
   const mascots = t.mascots && t.mascots.length > 0 ? t.mascots : [t.sticker];
-  const items = mascots.slice(0, 3).map((c, i) => ({
-    char: c,
-    size: 48 - i * 10,
-    offset: i * 14,
-    rotate: ((i % 2 === 0 ? -1 : 1) * (8 + i * 4)),
-  }));
-  const isRight = (position || "bottom-right").includes("right");
-  const isBottom = (position || "bottom-right").includes("bottom");
+  const items = mascots.slice(0, 3).map((c, i) => ({ char: c, ...DEFAULT_SPOTS[i % DEFAULT_SPOTS.length] }));
+  const flipH = lang === "he";
   return (
-    <div
-      aria-hidden
-      style={{
-        position: "absolute",
-        [isBottom ? "bottom" : "top"]: 0,
-        [isRight ? "right" : "left"]: 0,
-        width: 160,
-        height: 120,
-        pointerEvents: "none",
-        zIndex: 1,
-      }}
-    >
-      {items.map((it, i) => (
-        <div
-          key={i}
-          style={{
-            position: "absolute",
-            [isBottom ? "bottom" : "top"]: -8 + it.offset * (isBottom ? -1 : 1),
-            [isRight ? "right" : "left"]: -8 + it.offset,
-            fontSize: it.size,
-            transform: `rotate(${it.rotate}deg)`,
-            opacity: 0.9 - i * 0.18,
-            textShadow: "1px 2px 0 rgba(0,0,0,.06)",
-            userSelect: "none",
-            lineHeight: 1,
-          }}
-        >
-          {it.char}
-        </div>
-      ))}
-    </div>
+    <>
+      {items.map((it, i) => {
+        const horizKey: "left" | "right" = flipH
+          ? it.h.edge === "left" ? "right" : "left"
+          : it.h.edge;
+        return (
+          <div
+            key={i}
+            aria-hidden
+            style={{
+              position: "absolute",
+              [it.v.edge]: `${it.v.pct}%`,
+              [horizKey]: `${it.h.pct}%`,
+              fontSize: it.size,
+              transform: `rotate(${it.rotate}deg)`,
+              opacity: 0.85,
+              textShadow: "1px 2px 0 rgba(0,0,0,.07)",
+              userSelect: "none",
+              lineHeight: 1,
+              pointerEvents: "none",
+              zIndex: 1,
+            }}
+          >
+            {it.char}
+          </div>
+        );
+      })}
+    </>
   );
 };
