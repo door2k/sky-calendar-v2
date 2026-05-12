@@ -7,17 +7,17 @@ interface Props {
 }
 
 export const Confetti = ({ t, count = 8, seed = 0 }: Props) => {
-  const stickers = [t.sticker, "★", "♥", "✦", "●"];
+  const stickers = t.decorChars && t.decorChars.length > 0 ? t.decorChars : [t.sticker, "★", "♥", "✦", "●"];
   const colors = [t.accent, t.accent2, t.fridayAccent, t.halo];
   const items: { char: string; color: string; x: number; y: number; rot: number; size: number }[] = [];
   for (let i = 0; i < count; i++) {
     items.push({
-      char: stickers[i % stickers.length],
+      char: stickers[(i + seed) % stickers.length],
       color: colors[(i + seed) % colors.length],
       x: ((i * 47 + seed * 23) % 90) + 5,
       y: ((i * 31 + seed * 17) % 90) + 5,
       rot: ((i * 53 + seed * 7) % 60) - 30,
-      size: 16 + (i % 3) * 4,
+      size: 16 + (i % 3) * 6,
     });
   }
   return (

@@ -3,6 +3,8 @@ import { THEMES, themeStyle } from "../themes";
 import { WEEK } from "../data/week";
 import { DayCardWeb } from "../components/DayCardWeb";
 import { AIStrip, type ChatMessage } from "../components/AIStrip";
+import { Confetti } from "../components/Confetti";
+import { MascotCluster } from "../components/Mascot";
 
 interface Props {
   theme: Theme;
@@ -160,8 +162,13 @@ export const WebWeekView = ({
           </div>
         </div>
         <div style={{ flex: 1 }}>
-          <div style={{ fontFamily: t.fontHead, fontWeight: 700, fontSize: 22, letterSpacing: -0.4, lineHeight: 1 }}>
-            {tx("Sky's Week", "השבוע של סקיי")}
+          <div style={{ fontFamily: t.fontHead, fontWeight: 700, fontSize: 22, letterSpacing: -0.4, lineHeight: 1, display: "flex", alignItems: "center", gap: 8 }}>
+            <span>{tx("Sky's Week", "השבוע של סקיי")}</span>
+            {t.mascots && t.mascots[0] && (
+              <span style={{ fontSize: 22, transform: "rotate(-8deg)", display: "inline-block" }} aria-hidden>
+                {t.mascots[0]}
+              </span>
+            )}
           </div>
           <div style={{ fontSize: 12, color: t.inkSoft, marginTop: 3 }}>
             {weekLabelEn || weekLabelHe
@@ -251,8 +258,13 @@ export const WebWeekView = ({
           gridTemplateColumns: "repeat(7, 1fr)",
           gap: 10,
           overflow: "hidden",
+          position: "relative",
         }}
       >
+        <div style={{ position: "absolute", inset: 0, pointerEvents: "none", opacity: 0.35 }}>
+          <Confetti t={t} count={6} seed={2} />
+        </div>
+        <MascotCluster t={t} position={lang === "he" ? "bottom-left" : "bottom-right"} />
         {week.map((d, i) => (
           <DayCardWeb
             key={`${d.date}-${i}`}

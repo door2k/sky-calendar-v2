@@ -19,6 +19,8 @@ export const THEMES: Record<string, Theme> = {
     dayTints: ["#fde7c8", "#e7eef5", "#fce4d4", "#e6e9d6", "#f4dec6", "#f0e0e9", "#dde7ee"],
     sticker: "🐾",
     motif: "paw",
+    mascots: ["🐶", "🐕", "🦴"],
+    decorChars: ["🐾", "🦴", "★", "♥", "✦", "🐶", "🐾", "●"],
   },
   piggy: {
     name: "Piggy Town",
@@ -38,6 +40,8 @@ export const THEMES: Record<string, Theme> = {
     dayTints: ["#ffe1ec", "#e0f1fb", "#ffe7d4", "#e6f4dd", "#fff0c8", "#f3dff5", "#dde9f7"],
     sticker: "🌸",
     motif: "heart",
+    mascots: ["🐷", "🐽", "🌸"],
+    decorChars: ["🌸", "💖", "🐷", "✨", "🌷", "🦋", "♥", "✦"],
   },
   hero: {
     name: "Web Hero",
@@ -57,6 +61,8 @@ export const THEMES: Record<string, Theme> = {
     dayTints: ["#2c3563", "#273a66", "#3a2c5e", "#2c4f5e", "#5e3030", "#3d3060", "#283a4a"],
     sticker: "✦",
     motif: "web",
+    mascots: ["🕷️", "🕸️", "🦸"],
+    decorChars: ["🕸️", "✦", "💥", "⚡", "★", "🕷️", "✺", "●"],
   },
   explorer: {
     name: "Big Adventure",
@@ -76,6 +82,8 @@ export const THEMES: Record<string, Theme> = {
     dayTints: ["#ffe6a8", "#cfe6ff", "#ffd6b0", "#d6f0c8", "#ffe0a0", "#e8d8ff", "#bce0ff"],
     sticker: "★",
     motif: "star",
+    mascots: ["🦊", "🧭", "⛺"],
+    decorChars: ["★", "🧭", "🍃", "⛰️", "🦊", "🌟", "✦", "♥"],
   },
   sisters: {
     name: "Frost & Flame",
@@ -95,6 +103,8 @@ export const THEMES: Record<string, Theme> = {
     dayTints: ["#e3effa", "#fde2db", "#ddeaf6", "#f6dfd6", "#e3effa", "#fde2db", "#cfe0f0"],
     sticker: "❄",
     motif: "snowflake",
+    mascots: ["⛄", "🦌", "🔥"],
+    decorChars: ["❄", "✦", "❅", "🦌", "⛄", "★", "♥", "🔥"],
   },
 };
 

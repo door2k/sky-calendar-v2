@@ -18,6 +18,8 @@ export interface Theme {
   dayTints: [string, string, string, string, string, string, string];
   sticker: string;
   motif: "paw" | "heart" | "web" | "star" | "snowflake";
+  mascots?: string[];
+  decorChars?: string[];
 }
 
 export interface Person {
