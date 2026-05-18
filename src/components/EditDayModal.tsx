@@ -1,9 +1,9 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { CSSProperties } from "react";
 import type { Lang, Theme } from "../types";
 import type { DbActivity, DbDaySchedule, DbPerson } from "../lib/db-types";
 import { useUpdateDaySchedule } from "../hooks/useSchedule";
-import { lf } from "../lib/i18n-field";
+import { useCreateActivity } from "../hooks/useActivities";
 
 interface Props {
   open: boolean;
@@ -28,40 +28,47 @@ interface FormState {
   gan_activity: string;
   is_no_gan: boolean;
   no_gan_reason: string;
-  after_gan_activity_id: string;
+  /** Free-form display name of the after-gan activity. Resolved to an ID on save. */
+  after_gan_text: string;
   after_gan_time: string;
   family_dinner_person_id: string;
   family_dinner_time: string;
   notes: string;
 }
 
-const blank = (): FormState => ({
-  dropoff_person_id: "",
-  pickup_person_id: "",
-  bedtime_person_id: "",
-  gan_activity: "",
-  is_no_gan: false,
-  no_gan_reason: "",
-  after_gan_activity_id: "",
-  after_gan_time: "",
-  family_dinner_person_id: "",
-  family_dinner_time: "",
-  notes: "",
-});
+const fromDb = (d: DbDaySchedule | null, dbActivities: DbActivity[]): FormState => {
+  const activity = d?.after_gan_activity_id
+    ? dbActivities.find((a) => a.id === d.after_gan_activity_id)
+    : undefined;
+  return {
+    dropoff_person_id: d?.dropoff_person_id || "",
+    pickup_person_id: d?.pickup_person_id || "",
+    bedtime_person_id: d?.bedtime_person_id || "",
+    gan_activity: d?.gan_activity || "",
+    is_no_gan: !!d?.is_no_gan,
+    no_gan_reason: d?.no_gan_reason || "",
+    after_gan_text: activity?.name || "",
+    after_gan_time: d?.after_gan_time || "",
+    family_dinner_person_id: d?.family_dinner_person_id || "",
+    family_dinner_time: d?.family_dinner_time || "",
+    notes: d?.notes || "",
+  };
+};
 
-const fromDb = (d: DbDaySchedule | null): FormState => ({
-  dropoff_person_id: d?.dropoff_person_id || "",
-  pickup_person_id: d?.pickup_person_id || "",
-  bedtime_person_id: d?.bedtime_person_id || "",
-  gan_activity: d?.gan_activity || "",
-  is_no_gan: !!d?.is_no_gan,
-  no_gan_reason: d?.no_gan_reason || "",
-  after_gan_activity_id: d?.after_gan_activity_id || "",
-  after_gan_time: d?.after_gan_time || "",
-  family_dinner_person_id: d?.family_dinner_person_id || "",
-  family_dinner_time: d?.family_dinner_time || "",
-  notes: d?.notes || "",
-});
+const shallowEqFormState = (a: FormState, b: FormState): boolean =>
+  a.dropoff_person_id === b.dropoff_person_id &&
+  a.pickup_person_id === b.pickup_person_id &&
+  a.bedtime_person_id === b.bedtime_person_id &&
+  a.gan_activity === b.gan_activity &&
+  a.is_no_gan === b.is_no_gan &&
+  a.no_gan_reason === b.no_gan_reason &&
+  a.after_gan_text === b.after_gan_text &&
+  a.after_gan_time === b.after_gan_time &&
+  a.family_dinner_person_id === b.family_dinner_person_id &&
+  a.family_dinner_time === b.family_dinner_time &&
+  a.notes === b.notes;
+
+type SaveStatus = "idle" | "saving" | "saved" | "error";
 
 export const EditDayModal = ({
   open,
@@ -82,56 +89,112 @@ export const EditDayModal = ({
   const tx = (en: string, he: string) => (lang === "he" ? he : en);
   const isFri = dayIdx === 5;
 
-  const [form, setForm] = useState<FormState>(() => fromDb(current));
+  const baseline = useMemo(() => fromDb(current, dbActivities), [current, dbActivities]);
+  const [form, setForm] = useState<FormState>(() => baseline);
+  const [status, setStatus] = useState<SaveStatus>("idle");
   const [saveError, setSaveError] = useState<string | null>(null);
   const update = useUpdateDaySchedule();
+  const create = useCreateActivity();
+  const saveTimerRef = useRef<number | null>(null);
+  const savedFlashRef = useRef<number | null>(null);
+  const latestFormRef = useRef<FormState>(form);
+  latestFormRef.current = form;
 
   useEffect(() => {
     if (open) {
-      setForm(fromDb(current));
+      setForm(baseline);
+      setStatus("idle");
       setSaveError(null);
     }
-  }, [open, current]);
+  }, [open, baseline]);
+
+  const performSave = async (snapshot: FormState) => {
+    setStatus("saving");
+    setSaveError(null);
+    try {
+      // Resolve after-gan free-form text → activity id (find or create)
+      let after_gan_activity_id: string | null = null;
+      const txt = snapshot.after_gan_text.trim();
+      if (txt) {
+        const lc = txt.toLowerCase();
+        const existing = dbActivities.find((a) => a.name.trim().toLowerCase() === lc);
+        if (existing) {
+          after_gan_activity_id = existing.id;
+        } else {
+          const created = await create.mutateAsync({
+            name: txt,
+            is_recurring: false,
+          });
+          after_gan_activity_id = (created as DbActivity).id;
+        }
+      }
+
+      const payload: Partial<DbDaySchedule> & { date: string } = {
+        date: dateIso,
+        dropoff_person_id: snapshot.dropoff_person_id || null,
+        pickup_person_id: snapshot.pickup_person_id || null,
+        bedtime_person_id: snapshot.bedtime_person_id || null,
+        is_no_gan: snapshot.is_no_gan,
+        gan_activity: snapshot.is_no_gan ? null : snapshot.gan_activity || null,
+        no_gan_reason: snapshot.is_no_gan ? snapshot.no_gan_reason || null : null,
+        after_gan_activity_id,
+        after_gan_time: after_gan_activity_id ? snapshot.after_gan_time || null : null,
+        notes: snapshot.notes || null,
+      };
+      if (isFri) {
+        payload.family_dinner_person_id = snapshot.family_dinner_person_id || null;
+        payload.family_dinner_time = snapshot.family_dinner_time || null;
+      }
+      await update.mutateAsync(payload);
+      setStatus("saved");
+      if (savedFlashRef.current) window.clearTimeout(savedFlashRef.current);
+      savedFlashRef.current = window.setTimeout(() => {
+        setStatus((s) => (s === "saved" ? "idle" : s));
+      }, 1500);
+    } catch (err) {
+      setStatus("error");
+      setSaveError(err instanceof Error ? err.message : String(err));
+    }
+  };
+
+  // Debounced auto-save when form differs from baseline
+  useEffect(() => {
+    if (!open) return;
+    if (shallowEqFormState(form, baseline)) return;
+    if (saveTimerRef.current) window.clearTimeout(saveTimerRef.current);
+    saveTimerRef.current = window.setTimeout(() => {
+      void performSave(latestFormRef.current);
+    }, 800);
+    return () => {
+      if (saveTimerRef.current) window.clearTimeout(saveTimerRef.current);
+    };
+    // We intentionally don't include performSave in deps — it closes over mutations
+    // which are stable enough across renders for this debounce loop.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [form, baseline, open]);
+
+  const handleClose = async () => {
+    if (saveTimerRef.current) window.clearTimeout(saveTimerRef.current);
+    if (!shallowEqFormState(latestFormRef.current, baseline) && !update.isPending) {
+      await performSave(latestFormRef.current);
+    }
+    onClose();
+  };
 
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape" && !update.isPending) onClose();
+      if (e.key === "Escape" && !update.isPending) void handleClose();
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [open, onClose, update.isPending]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, update.isPending]);
 
   if (!open) return null;
 
   const set = <K extends keyof FormState>(k: K, v: FormState[K]) =>
     setForm((f) => ({ ...f, [k]: v }));
-
-  const handleSave = async () => {
-    setSaveError(null);
-    const payload: Partial<DbDaySchedule> & { date: string } = {
-      date: dateIso,
-      dropoff_person_id: form.dropoff_person_id || null,
-      pickup_person_id: form.pickup_person_id || null,
-      bedtime_person_id: form.bedtime_person_id || null,
-      is_no_gan: form.is_no_gan,
-      gan_activity: form.is_no_gan ? null : form.gan_activity || null,
-      no_gan_reason: form.is_no_gan ? form.no_gan_reason || null : null,
-      after_gan_activity_id: form.after_gan_activity_id || null,
-      after_gan_time: form.after_gan_time || null,
-      notes: form.notes || null,
-    };
-    if (isFri) {
-      payload.family_dinner_person_id = form.family_dinner_person_id || null;
-      payload.family_dinner_time = form.family_dinner_time || null;
-    }
-    try {
-      await update.mutateAsync(payload);
-      onClose();
-    } catch (err) {
-      setSaveError(err instanceof Error ? err.message : String(err));
-    }
-  };
 
   const stickerCard: CSSProperties = {
     background: t.cardBg,
@@ -174,20 +237,24 @@ export const EditDayModal = ({
     </>
   );
 
-  const activityOptions = (
-    <>
-      <option value="">{tx("— none —", "— ללא —")}</option>
-      {dbActivities.map((a) => (
-        <option key={a.id} value={a.id}>
-          {lf(a as unknown as Record<string, unknown>, "name", lang) || a.name}
-        </option>
-      ))}
-    </>
-  );
+  const datalistId = `after-gan-suggestions-${dateIso}`;
+
+  const statusLine = (() => {
+    if (status === "saving") {
+      return { text: tx("Saving…", "שומר…"), color: t.inkSoft };
+    }
+    if (status === "saved") {
+      return { text: tx("✓ Saved", "✓ נשמר"), color: t.inkSoft };
+    }
+    if (status === "error") {
+      return { text: tx("Couldn't save", "שמירה נכשלה"), color: t.fridayAccent };
+    }
+    return null;
+  })();
 
   return (
     <div
-      onClick={() => !update.isPending && onClose()}
+      onClick={() => !update.isPending && !create.isPending && void handleClose()}
       style={{
         position: "fixed",
         inset: 0,
@@ -240,13 +307,26 @@ export const EditDayModal = ({
             >
               {tx(dayLabelEn, dayLabelHe)} · {tx(dateLabelEn, dateLabelHe)}
             </div>
-            <div style={{ fontSize: 11, color: t.inkSoft, marginTop: 2 }}>
-              {tx("Edit Sky's day", "ערוך את היום של סקיי")}
+            <div style={{ fontSize: 11, color: t.inkSoft, marginTop: 2, display: "flex", alignItems: "center", gap: 8 }}>
+              <span>{tx("Edit Sky's day", "ערוך את היום של סקיי")}</span>
+              {statusLine && (
+                <span
+                  style={{
+                    fontSize: 10,
+                    fontWeight: 700,
+                    color: statusLine.color,
+                    fontFamily: t.fontHead,
+                    letterSpacing: 0.6,
+                  }}
+                >
+                  · {statusLine.text}
+                </span>
+              )}
             </div>
           </div>
           <button
-            onClick={onClose}
-            disabled={update.isPending}
+            onClick={() => void handleClose()}
+            disabled={update.isPending || create.isPending}
             aria-label="close"
             style={{
               background: "transparent",
@@ -255,10 +335,10 @@ export const EditDayModal = ({
               width: 32,
               height: 32,
               borderRadius: "50%",
-              cursor: update.isPending ? "default" : "pointer",
+              cursor: update.isPending || create.isPending ? "default" : "pointer",
               fontSize: 16,
               fontWeight: 700,
-              opacity: update.isPending ? 0.5 : 1,
+              opacity: update.isPending || create.isPending ? 0.5 : 1,
             }}
           >
             ×
@@ -266,7 +346,13 @@ export const EditDayModal = ({
         </div>
 
         <div style={{ padding: 18, display: "flex", flexDirection: "column", gap: 12 }}>
-          <section style={{ ...stickerCard, background: form.is_no_gan ? `${t.fridayAccent}11` : t.cardBg, borderColor: form.is_no_gan ? t.fridayAccent : t.ink }}>
+          <section
+            style={{
+              ...stickerCard,
+              background: form.is_no_gan ? `${t.fridayAccent}11` : t.cardBg,
+              borderColor: form.is_no_gan ? t.fridayAccent : t.ink,
+            }}
+          >
             <label style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer", fontWeight: 600 }}>
               <input
                 type="checkbox"
@@ -303,19 +389,31 @@ export const EditDayModal = ({
           <section style={stickerCard}>
             <div style={sectionLabel}>{tx("After gan", "אחרי הגן")}</div>
             <div style={{ display: "flex", gap: 8 }}>
-              <select
-                value={form.after_gan_activity_id}
-                onChange={(e) => set("after_gan_activity_id", e.target.value)}
+              <input
+                type="text"
+                list={datalistId}
+                value={form.after_gan_text}
+                onChange={(e) => set("after_gan_text", e.target.value)}
+                placeholder={tx("Type or pick an activity", "הקלד או בחר פעילות")}
                 style={{ ...inputStyle, flex: 2 }}
-              >
-                {activityOptions}
-              </select>
+              />
+              <datalist id={datalistId}>
+                {dbActivities.map((a) => (
+                  <option key={a.id} value={a.name} />
+                ))}
+              </datalist>
               <input
                 type="time"
                 value={form.after_gan_time}
                 onChange={(e) => set("after_gan_time", e.target.value)}
                 style={{ ...inputStyle, flex: 1 }}
               />
+            </div>
+            <div style={{ fontSize: 10.5, color: t.inkSoft, marginTop: 6, fontStyle: "italic" }}>
+              {tx(
+                "Free text — if it doesn't match an existing activity, a new one is added.",
+                "טקסט חופשי — אם זה לא תואם פעילות קיימת, תיווצר חדשה."
+              )}
             </div>
           </section>
 
@@ -372,7 +470,7 @@ export const EditDayModal = ({
             />
           </section>
 
-          {saveError && (
+          {status === "error" && saveError && (
             <div
               style={{
                 padding: 10,
@@ -391,50 +489,39 @@ export const EditDayModal = ({
 
         <div
           style={{
-            padding: "12px 20px",
+            padding: "10px 20px",
             background: t.paperDeep,
             borderTop: `2px dashed ${t.cardBorder}`,
             display: "flex",
-            justifyContent: "flex-end",
+            alignItems: "center",
+            justifyContent: "space-between",
             gap: 10,
+            fontFamily: t.fontHead,
+            fontSize: 11,
+            color: t.inkSoft,
           }}
         >
+          <span style={{ fontWeight: 600, letterSpacing: 0.4 }}>
+            {tx("Changes save automatically", "שינויים נשמרים אוטומטית")}
+          </span>
           <button
-            onClick={onClose}
-            disabled={update.isPending}
+            onClick={() => void handleClose()}
+            disabled={update.isPending || create.isPending}
             style={{
-              padding: "8px 16px",
-              background: "transparent",
-              color: t.inkSoft,
-              border: `2px solid ${t.cardBorder}`,
-              borderRadius: 99,
-              fontFamily: t.fontHead,
-              fontSize: 13,
-              fontWeight: 700,
-              cursor: update.isPending ? "default" : "pointer",
-              opacity: update.isPending ? 0.5 : 1,
-            }}
-          >
-            {tx("Cancel", "ביטול")}
-          </button>
-          <button
-            onClick={handleSave}
-            disabled={update.isPending}
-            style={{
-              padding: "8px 22px",
+              padding: "6px 18px",
               background: t.accent,
               color: "#fff",
               border: `2px solid ${t.ink}`,
               borderRadius: 99,
               fontFamily: t.fontHead,
-              fontSize: 13,
+              fontSize: 12,
               fontWeight: 700,
-              cursor: update.isPending ? "default" : "pointer",
+              cursor: update.isPending || create.isPending ? "default" : "pointer",
               boxShadow: `2px 2px 0 ${t.ink}`,
-              opacity: update.isPending ? 0.7 : 1,
+              opacity: update.isPending || create.isPending ? 0.7 : 1,
             }}
           >
-            {update.isPending ? tx("Saving…", "שומר…") : tx("Save", "שמור")}
+            {tx("Done", "סיום")}
           </button>
         </div>
       </div>
