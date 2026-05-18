@@ -3,7 +3,9 @@ import type { CSSProperties } from "react";
 import type { Lang, Theme } from "../types";
 import type { DbActivity, DbDaySchedule, DbPerson } from "../lib/db-types";
 import { useUpdateDaySchedule } from "../hooks/useSchedule";
-import { useCreateActivity } from "../hooks/useActivities";
+import { useCreateActivity, useUpdateActivity } from "../hooks/useActivities";
+import { PersonAvatar } from "./PersonAvatar";
+import { buildPersonSlugMap } from "../lib/adapters";
 
 interface Props {
   open: boolean;
@@ -31,6 +33,8 @@ interface FormState {
   /** Free-form display name of the after-gan activity. Resolved to an ID on save. */
   after_gan_text: string;
   after_gan_time: string;
+  /** People associated with the after-gan activity (mirrors activity.associated_person_ids). */
+  after_gan_person_ids: string[];
   family_dinner_person_id: string;
   family_dinner_time: string;
   notes: string;
@@ -49,11 +53,14 @@ const fromDb = (d: DbDaySchedule | null, dbActivities: DbActivity[]): FormState 
     no_gan_reason: d?.no_gan_reason || "",
     after_gan_text: activity?.name || "",
     after_gan_time: d?.after_gan_time || "",
+    after_gan_person_ids: activity?.associated_person_ids ? [...activity.associated_person_ids] : [],
     family_dinner_person_id: d?.family_dinner_person_id || "",
     family_dinner_time: d?.family_dinner_time || "",
     notes: d?.notes || "",
   };
 };
+
+const sortedKey = (xs: string[]) => [...xs].sort().join("|");
 
 const shallowEqFormState = (a: FormState, b: FormState): boolean =>
   a.dropoff_person_id === b.dropoff_person_id &&
@@ -64,6 +71,7 @@ const shallowEqFormState = (a: FormState, b: FormState): boolean =>
   a.no_gan_reason === b.no_gan_reason &&
   a.after_gan_text === b.after_gan_text &&
   a.after_gan_time === b.after_gan_time &&
+  sortedKey(a.after_gan_person_ids) === sortedKey(b.after_gan_person_ids) &&
   a.family_dinner_person_id === b.family_dinner_person_id &&
   a.family_dinner_time === b.family_dinner_time &&
   a.notes === b.notes;
@@ -95,6 +103,8 @@ export const EditDayModal = ({
   const [saveError, setSaveError] = useState<string | null>(null);
   const update = useUpdateDaySchedule();
   const create = useCreateActivity();
+  const updateActivity = useUpdateActivity();
+  const peopleSlugMap = useMemo(() => buildPersonSlugMap(dbPeople), [dbPeople]);
   const saveTimerRef = useRef<number | null>(null);
   const savedFlashRef = useRef<number | null>(null);
   const latestFormRef = useRef<FormState>(form);
@@ -114,18 +124,36 @@ export const EditDayModal = ({
     try {
       // Resolve after-gan free-form text → activity id (find or create)
       let after_gan_activity_id: string | null = null;
+      let resolvedActivity: DbActivity | undefined;
       const txt = snapshot.after_gan_text.trim();
       if (txt) {
         const lc = txt.toLowerCase();
         const existing = dbActivities.find((a) => a.name.trim().toLowerCase() === lc);
         if (existing) {
           after_gan_activity_id = existing.id;
+          resolvedActivity = existing;
         } else {
-          const created = await create.mutateAsync({
+          const created = (await create.mutateAsync({
             name: txt,
             is_recurring: false,
+            associated_person_ids: snapshot.after_gan_person_ids.length > 0
+              ? snapshot.after_gan_person_ids
+              : undefined,
+          })) as DbActivity;
+          after_gan_activity_id = created.id;
+          resolvedActivity = created;
+        }
+      }
+
+      // Sync people on the resolved activity if they differ.
+      if (after_gan_activity_id && resolvedActivity) {
+        const currentPeople = resolvedActivity.associated_person_ids ?? [];
+        const wantPeople = snapshot.after_gan_person_ids;
+        if (sortedKey(currentPeople) !== sortedKey(wantPeople)) {
+          await updateActivity.mutateAsync({
+            id: after_gan_activity_id,
+            associated_person_ids: wantPeople,
           });
-          after_gan_activity_id = (created as DbActivity).id;
         }
       }
 
@@ -326,7 +354,7 @@ export const EditDayModal = ({
           </div>
           <button
             onClick={() => void handleClose()}
-            disabled={update.isPending || create.isPending}
+            disabled={update.isPending || create.isPending || updateActivity.isPending}
             aria-label="close"
             style={{
               background: "transparent",
@@ -335,10 +363,10 @@ export const EditDayModal = ({
               width: 32,
               height: 32,
               borderRadius: "50%",
-              cursor: update.isPending || create.isPending ? "default" : "pointer",
+              cursor: update.isPending || create.isPending || updateActivity.isPending ? "default" : "pointer",
               fontSize: 16,
               fontWeight: 700,
-              opacity: update.isPending || create.isPending ? 0.5 : 1,
+              opacity: update.isPending || create.isPending || updateActivity.isPending ? 0.5 : 1,
             }}
           >
             ×
@@ -415,6 +443,58 @@ export const EditDayModal = ({
                 "טקסט חופשי — אם זה לא תואם פעילות קיימת, תיווצר חדשה."
               )}
             </div>
+            {form.after_gan_text.trim() && (
+              <div style={{ marginTop: 10 }}>
+                <div style={{ ...sectionLabel, marginBottom: 6 }}>
+                  {tx("Who's joining?", "מי מצטרף?")}
+                </div>
+                <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                  {dbPeople.map((p) => {
+                    const sel = form.after_gan_person_ids.includes(p.id);
+                    const slug = peopleSlugMap.get(p.id) || p.id;
+                    return (
+                      <button
+                        key={p.id}
+                        type="button"
+                        onClick={() =>
+                          setForm((f) => ({
+                            ...f,
+                            after_gan_person_ids: f.after_gan_person_ids.includes(p.id)
+                              ? f.after_gan_person_ids.filter((x) => x !== p.id)
+                              : [...f.after_gan_person_ids, p.id],
+                          }))
+                        }
+                        title={p.name}
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 6,
+                          padding: "3px 10px 3px 3px",
+                          borderRadius: 99,
+                          border: sel ? `2px solid ${t.accent}` : `1.5px solid ${t.cardBorder}`,
+                          background: sel ? `${t.accent}22` : t.paper,
+                          color: t.ink,
+                          fontFamily: t.fontHead,
+                          fontSize: 11,
+                          fontWeight: 700,
+                          cursor: "pointer",
+                          transition: "background .15s, border-color .15s",
+                        }}
+                      >
+                        <PersonAvatar id={slug} size={22} halo={false} theme={t} />
+                        <span>{p.name}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+                <div style={{ fontSize: 10, color: t.inkSoft, marginTop: 6, fontStyle: "italic" }}>
+                  {tx(
+                    "Edits the activity's associated people (affects every day using this activity).",
+                    "עורך את האנשים של הפעילות (משפיע על כל יום שמשתמש בה)."
+                  )}
+                </div>
+              </div>
+            )}
           </section>
 
           <section style={stickerCard}>
@@ -506,7 +586,7 @@ export const EditDayModal = ({
           </span>
           <button
             onClick={() => void handleClose()}
-            disabled={update.isPending || create.isPending}
+            disabled={update.isPending || create.isPending || updateActivity.isPending}
             style={{
               padding: "6px 18px",
               background: t.accent,
@@ -516,9 +596,9 @@ export const EditDayModal = ({
               fontFamily: t.fontHead,
               fontSize: 12,
               fontWeight: 700,
-              cursor: update.isPending || create.isPending ? "default" : "pointer",
+              cursor: update.isPending || create.isPending || updateActivity.isPending ? "default" : "pointer",
               boxShadow: `2px 2px 0 ${t.ink}`,
-              opacity: update.isPending || create.isPending ? 0.7 : 1,
+              opacity: update.isPending || create.isPending || updateActivity.isPending ? 0.7 : 1,
             }}
           >
             {tx("Done", "סיום")}
