@@ -55,6 +55,13 @@ export const PrintMonthLive = ({ theme, lang = "en", avatarScale = 1 }: Props) =
       if (!entry.events) entry.events = [];
       if (ds.dropoff_person_id) entry.dropoffSlug = slugMap.get(ds.dropoff_person_id);
       if (ds.pickup_person_id) entry.pickupSlug = slugMap.get(ds.pickup_person_id);
+      if (ds.gan_activity && !ds.is_no_gan) {
+        entry.events.push({
+          icon: activityIconKey(ds.gan_activity),
+          name: ds.gan_activity,
+          nameHe: ds.gan_activity_he || ds.gan_activity,
+        });
+      }
       if (ds.after_gan_activity_id) {
         const a = activities.data.find((x) => x.id === ds.after_gan_activity_id);
         if (a) {
