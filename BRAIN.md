@@ -51,7 +51,8 @@ Still tracked:
 - [x] Phase 2: PrintWeek live data ✅ 2026-05-04
 - [x] Adapter person resolution: synthetic procedural avatars + dual-avatar combined entries ✅ 2026-05-04
 - [ ] Phase 2: React Router (currently state-based view switcher; works fine, lower priority)
-- [ ] PrintMonth / PrintCombined — still hardcode demo data; only PrintWeek has a Live wrapper
+- [x] PrintMonth / PrintCombined — Live wrappers shipped (`PrintCombinedLive`, `PrintMonthLive`)
+- [x] 2026-06-17: Show & Tell (free-text `gan_activity`) now renders across month/combined views — `PrintCombined` day card, `PrintMonth` cell events, and `WebMonthViewLive` cells. (Same gap was fixed in v1's `PrintCombined`/`PrintMonth`.)
 - [ ] AIStrip currently only handles `update_day`, `update_saturday`, `message` actions. `create_activity`, `assign_activity`, `delete_activity` from the assistant are surfaced as "skipped unsupported".
 - [ ] Tamir flagged "days don't visually break into components" — investigate (kladban #155)
 
@@ -66,6 +67,8 @@ If sky.door2k.com cert breaks: `vercel domains rm sky.door2k.com` + re-add — t
 **Env var gotcha:** `vercel env pull` writes long values with a literal `\n` suffix (escaped, inside the quoted string). When re-adding via `vercel env add ... --value="$value"` from a parsed dotenv line, strip with `sed 's/\\n$//'` first — otherwise the `\n` ends up in the env var and breaks `Authorization` headers (Anthropic returns "invalid x-api-key"). Sensitive vars (default for prod/preview) read back as `""` on `vercel env pull`; this is masking, not corruption — the real value is at runtime.
 
 ## Context for Claude
+- **Maintain BOTH v1 and v2.** They share the Supabase DB (`thzesmfiecccpvuzuscd`), so a data/feature/display fix usually needs to land in both apps — re-implemented in each one's idiom (v1 = Tailwind + React Query, classic components; v2 = inline styles + `adapters.ts` + `*Live.tsx` wrappers). v1 repo `github.com/door2k/sky-calendar` at `~/projects/sky-calendar`; domains sky-calendar.vercel.app / sky.door2k.dev; Vercel project `prj_JnCwqhHgFqtZTt1VTAwe9rqZcc7X`.
+- **Deploy:** `git push origin main` auto-deploys via GitHub→Vercel. `npx vercel --prod` fails (expired CLI token); confirm via Vercel MCP `list_deployments` (team `team_ZjB8fTO69klbnGqn0rMBy7ML`).
 - v1 lives on cloud at `~/projects/sky-calendar` (different project, both share Supabase ref `thzesmfiecccpvuzuscd`).
 - Design source: `/tmp/sky-design/sky-calendar/project/` (gzip from claude.ai/design, decompressed).
 - Don't mix this project with v1 — separate Vercel project, separate repo.

@@ -75,7 +75,7 @@ export const WebMonthViewLive = ({ theme, lang = "en" }: Props) => {
   );
 
   const dayEntries = useMemo(() => {
-    const m: Record<number, { person?: string; icons: string[] }> = {};
+    const m: Record<number, { person?: string; icons: string[]; gan?: string; ganHe?: string }> = {};
     if (!sched.data || !activities.data) return m;
     const actMap = new Map(activities.data.map((a) => [a.id, a]));
 
@@ -87,6 +87,10 @@ export const WebMonthViewLive = ({ theme, lang = "en" }: Props) => {
       if (d.after_gan_activity_id) {
         const a = actMap.get(d.after_gan_activity_id);
         m[day].icons.push(a?.icon || activityIconKey(a?.name));
+      }
+      if (d.gan_activity && !d.is_no_gan) {
+        m[day].gan = d.gan_activity;
+        m[day].ganHe = d.gan_activity_he || d.gan_activity;
       }
     }
     for (const s of sched.data.saturdaySchedules) {
@@ -207,6 +211,24 @@ export const WebMonthViewLive = ({ theme, lang = "en" }: Props) => {
                 {isSat && <span style={{ fontSize: 9 }}>✦</span>}
               </div>
               {entry?.person && <PersonAvatar id={entry.person} size={22} halo={false} theme={t} />}
+              {entry?.gan && (
+                <div
+                  title={tx(entry.gan, entry.ganHe || entry.gan)}
+                  style={{
+                    fontSize: 8,
+                    lineHeight: 1.15,
+                    color: t.inkSoft,
+                    fontWeight: 600,
+                    fontFamily: t.fontHead,
+                    overflow: "hidden",
+                    display: "-webkit-box",
+                    WebkitLineClamp: 2,
+                    WebkitBoxOrient: "vertical",
+                  }}
+                >
+                  {tx(entry.gan, entry.ganHe || entry.gan)}
+                </div>
+              )}
               {entry?.icons && entry.icons.length > 0 && (
                 <div style={{ display: "flex", gap: 3, flexWrap: "wrap", marginTop: "auto" }}>
                   {entry.icons.slice(0, 3).map((k, i) => (
