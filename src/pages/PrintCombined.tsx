@@ -64,6 +64,27 @@ const CombinedDayCard = ({ d, t, lang, dayIdx, avatarScale = 1 }: { d: Day; t: T
         </div>
       )}
 
+      {!isSat && d.gan && !d.noGan && (
+        <div
+          style={{
+            width: "100%",
+            background: t.paper,
+            border: `1px dashed ${t.ink}`,
+            borderRadius: 8,
+            padding: "3px 4px",
+            textAlign: "center",
+          }}
+          title={d.gan.label}
+        >
+          <div style={{ fontSize: 6.5, fontWeight: 700, letterSpacing: 0.6, color: t.inkSoft, fontFamily: t.fontHead, textTransform: "uppercase" }}>
+            {tx("At Gan", "בגן")}
+          </div>
+          <div style={{ fontSize: 8, fontWeight: 600, color: t.ink, fontFamily: t.fontHead, lineHeight: 1.15 }}>
+            {tx(d.gan.label, d.gan.labelHe)}
+          </div>
+        </div>
+      )}
+
       {!isSat && d.pickup && (
         <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 1 }}>
           <div style={{ fontSize: 7, fontWeight: 700, letterSpacing: 0.8, color: t.inkSoft, fontFamily: t.fontHead }}>↑</div>
