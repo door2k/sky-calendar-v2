@@ -27,8 +27,8 @@ Still tracked:
 - **#155** — investigate "days not broken into components" rendering observation Tamir flagged
 - AIStrip can't fully exercise the assistant: needs Anthropic credits (user-side billing).
 - Push notifications: subscribe-flow exists but no UI surface to opt the user in.
-- `PrintMonth` and `PrintCombined` still hardcode demo data; `WebMonthViewLive` already exists.
-- Service worker caches aggressively — to test new builds in browser, manually `unregister()` SWs and clear caches.
+- Print views default to live data via the `*Live` wrappers and (as of 2026-06-20) have screen-only ‹ Today › week/month navigation (`PrintNav`); only the `?demo=1` path still renders the sample fixture.
+- Service worker caches aggressively — to test new builds in browser, manually `unregister()` SWs and clear caches. (After any deploy, tell Tamir to **hard-refresh** sky.door2k.com.)
 
 ## Key Decisions
 | Decision | Reasoning | Date |
@@ -53,6 +53,11 @@ Still tracked:
 - [ ] Phase 2: React Router (currently state-based view switcher; works fine, lower priority)
 - [x] PrintMonth / PrintCombined — Live wrappers shipped (`PrintCombinedLive`, `PrintMonthLive`)
 - [x] 2026-06-17: Show & Tell (free-text `gan_activity`) now renders across month/combined views — `PrintCombined` day card, `PrintMonth` cell events, and `WebMonthViewLive` cells. (Same gap was fixed in v1's `PrintCombined`/`PrintMonth`.)
+- [x] 2026-06-20: Edit/print bug cluster (v2 only):
+  - **After-gan activity people persist.** `EditDayModal` auto-save invalidated the queries → recomputed `baseline` → an effect reset the whole form, wiping the "Who's joining?" people picked after the activity auto-created. Now inits the form once per open (guarded `initializedRef`). Also render those people on `PrintWeek` (parity with screen + combined print).
+  - **Last-Friday activities render.** Day card + all prints gated the activity list behind `isSat`, but a last Friday is `isFri`; its `saturday_schedules` activities (e.g. a custom "US Passport") vanished. The adapter only sets `day.activities` for Sat/last-Fri, so the gate was just dropped.
+  - **Print navigation.** `PrintWeekLive`/`PrintCombinedLive`/`PrintMonthLive` each own an anchor + a screen-only `PrintNav` (‹ / Today / ›) — week step for week/combined, month step for month. Were locked to `new Date()`.
+  - **Last-Friday gan-open override.** New column `day_schedules.last_friday_gan_open boolean default false`. A last Friday is no-gan/Saturday-style by default; set the flag (via the "Gan is open this Friday" toggle in either editor) to render & edit it as a regular gan day from `day_schedules`. Flipping in `EditSaturdayModal` carries the dinner host over; the Saturday-style activities stay dormant on `saturday_schedules` and return on flip-back. Routing in `WebWeekViewLive`, rendering in `adapters.adaptWeekToDays`, and both month views skip the dormant saturday row for a flipped day. **v1 ignores this column (unchanged).**
 - [ ] AIStrip currently only handles `update_day`, `update_saturday`, `message` actions. `create_activity`, `assign_activity`, `delete_activity` from the assistant are surfaced as "skipped unsupported".
 - [ ] Tamir flagged "days don't visually break into components" — investigate (kladban #155)
 
