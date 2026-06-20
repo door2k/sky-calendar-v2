@@ -1,6 +1,8 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
+import { addMonths } from "date-fns";
 import type { Lang, Theme } from "../types";
 import { PrintMonth, type MonthDayEntry, type MonthDayEvent } from "./PrintMonth";
+import { PrintNav } from "../components/PrintNav";
 import { useMonthSchedule } from "../hooks/useSchedule";
 import { usePeople } from "../hooks/usePeople";
 import { useActivities } from "../hooks/useActivities";
@@ -25,9 +27,9 @@ const EN_MONTHS = [
 const DAY_FULL = ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"];
 
 export const PrintMonthLive = ({ theme, lang = "en", avatarScale = 1 }: Props) => {
-  const today = useMemo(() => new Date(), []);
-  const yr = today.getFullYear();
-  const mi = today.getMonth();
+  const [anchor, setAnchor] = useState<Date>(() => new Date());
+  const yr = anchor.getFullYear();
+  const mi = anchor.getMonth();
 
   const month = useMonthSchedule(yr, mi + 1);
   const people = usePeople();
@@ -157,18 +159,31 @@ export const PrintMonthLive = ({ theme, lang = "en", avatarScale = 1 }: Props) =
     return Array.from(map.values());
   }, [perDay, activities.data, lang]);
 
+  const realToday = new Date();
+  const todayN =
+    realToday.getFullYear() === yr && realToday.getMonth() === mi ? realToday.getDate() : -1;
+
   return (
-    <PrintMonth
-      theme={theme}
-      lang={lang}
-      year={yr}
-      monthIndex={mi}
-      todayN={today.getDate()}
-      perDay={perDay}
-      monthLabelEn={`${EN_MONTHS[mi]} ${yr}`}
-      monthLabelHe={`${HE_MONTHS[mi]} ${yr}`}
-      legendIcons={legendIcons}
-      avatarScale={avatarScale}
-    />
+    <>
+      <PrintNav
+        lang={lang}
+        label={`${(lang === "he" ? HE_MONTHS : EN_MONTHS)[mi]} ${yr}`}
+        onPrev={() => setAnchor((a) => addMonths(a, -1))}
+        onNext={() => setAnchor((a) => addMonths(a, 1))}
+        onToday={() => setAnchor(new Date())}
+      />
+      <PrintMonth
+        theme={theme}
+        lang={lang}
+        year={yr}
+        monthIndex={mi}
+        todayN={todayN}
+        perDay={perDay}
+        monthLabelEn={`${EN_MONTHS[mi]} ${yr}`}
+        monthLabelHe={`${HE_MONTHS[mi]} ${yr}`}
+        legendIcons={legendIcons}
+        avatarScale={avatarScale}
+      />
+    </>
   );
 };

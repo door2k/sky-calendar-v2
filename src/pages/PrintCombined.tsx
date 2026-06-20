@@ -161,7 +161,7 @@ const CombinedDayCard = ({ d, t, lang, dayIdx, avatarScale = 1 }: { d: Day; t: T
         </div>
       ))}
 
-      {isSat && d.activities && d.activities.map((a, i) => (
+      {d.activities && d.activities.map((a, i) => (
         <div
           key={`sat-${i}`}
           style={{

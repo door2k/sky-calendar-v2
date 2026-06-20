@@ -1,7 +1,8 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { format, startOfWeek, addDays } from "date-fns";
 import type { Lang, Theme } from "../types";
 import { PrintWeek } from "./PrintWeek";
+import { PrintNav } from "../components/PrintNav";
 import { useWeekSchedule } from "../hooks/useSchedule";
 import { usePeople } from "../hooks/usePeople";
 import { useActivities } from "../hooks/useActivities";
@@ -20,7 +21,8 @@ const HE_MONTHS = [
 ];
 
 export const PrintWeekLive = ({ theme, lang = "en", avatarScale = 1, avatarHalo = true }: Props) => {
-  const weekStart = useMemo(() => startOfWeek(new Date(), { weekStartsOn: 0 }), []);
+  const [anchor, setAnchor] = useState<Date>(() => new Date());
+  const weekStart = useMemo(() => startOfWeek(anchor, { weekStartsOn: 0 }), [anchor]);
   const week = useWeekSchedule(weekStart);
   const people = usePeople();
   const activities = useActivities();
@@ -40,14 +42,23 @@ export const PrintWeekLive = ({ theme, lang = "en", avatarScale = 1, avatarHalo 
   const labelHe = `${weekStart.getDate()} ${HE_MONTHS[weekStart.getMonth()]} — ${weekEnd.getDate()} ${HE_MONTHS[weekEnd.getMonth()]}`;
 
   return (
-    <PrintWeek
-      theme={theme}
-      lang={lang}
-      avatarScale={avatarScale}
-      avatarHalo={avatarHalo}
-      days={days}
-      weekLabelEn={labelEn}
-      weekLabelHe={labelHe}
-    />
+    <>
+      <PrintNav
+        lang={lang}
+        label={lang === "he" ? labelHe : labelEn}
+        onPrev={() => setAnchor((a) => addDays(a, -7))}
+        onNext={() => setAnchor((a) => addDays(a, 7))}
+        onToday={() => setAnchor(new Date())}
+      />
+      <PrintWeek
+        theme={theme}
+        lang={lang}
+        avatarScale={avatarScale}
+        avatarHalo={avatarHalo}
+        days={days}
+        weekLabelEn={labelEn}
+        weekLabelHe={labelHe}
+      />
+    </>
   );
 };

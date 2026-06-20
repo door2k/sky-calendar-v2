@@ -200,8 +200,8 @@ const PrintDayRow = ({ d, t, lang, dayIdx, avatarScale = 1, avatarHalo = true }:
         </PrintSlot>
       )}
 
-      {isSat && d.activities && (
-        <PrintSlot t={t} label={tx("SATURDAY FUN", "סופ״ש")} flex>
+      {d.activities && d.activities.length > 0 && (
+        <PrintSlot t={t} label={isSat ? tx("SATURDAY FUN", "סופ״ש") : tx("PLANS", "תוכניות")} flex>
           <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
             {d.activities.map((a, i) => <PrintActivity key={i} t={t} a={a} lang={lang} />)}
           </div>

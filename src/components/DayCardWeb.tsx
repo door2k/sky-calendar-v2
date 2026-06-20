@@ -144,7 +144,7 @@ export const DayCardWeb = ({ d, t, lang, isToday, dayIdx, avatarScale = 1, avata
         />
       ))}
 
-      {isSat && d.activities && d.activities.map((a, i) => (
+      {d.activities && d.activities.map((a, i) => (
         <ActivityChip
           key={i}
           t={t}

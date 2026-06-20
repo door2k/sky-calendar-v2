@@ -1,7 +1,8 @@
-import { useMemo } from "react";
-import { startOfWeek } from "date-fns";
+import { useMemo, useState } from "react";
+import { startOfWeek, addDays, format } from "date-fns";
 import type { Lang, Theme } from "../types";
 import { PrintCombined } from "./PrintCombined";
+import { PrintNav } from "../components/PrintNav";
 import { useWeekSchedule, useMonthSchedule } from "../hooks/useSchedule";
 import { usePeople } from "../hooks/usePeople";
 import { useActivities } from "../hooks/useActivities";
@@ -25,13 +26,15 @@ const EN_MONTHS = [
 ];
 
 export const PrintCombinedLive = ({ theme, lang = "en", avatarScale = 1 }: Props) => {
-  const today = useMemo(() => new Date(), []);
-  const weekStart = useMemo(() => startOfWeek(today, { weekStartsOn: 0 }), [today]);
+  const [anchor, setAnchor] = useState<Date>(() => new Date());
+  const weekStart = useMemo(() => startOfWeek(anchor, { weekStartsOn: 0 }), [anchor]);
+  const monthYear = anchor.getFullYear();
+  const monthIndex = anchor.getMonth();
 
   const week = useWeekSchedule(weekStart);
   const people = usePeople();
   const activities = useActivities();
-  const month = useMonthSchedule(today.getFullYear(), today.getMonth() + 1);
+  const month = useMonthSchedule(monthYear, monthIndex + 1);
 
   const days = useMemo(() => {
     if (!week.data || !people.data || !activities.data) return undefined;
@@ -46,8 +49,8 @@ export const PrintCombinedLive = ({ theme, lang = "en", avatarScale = 1 }: Props
   const monthEntries = useMemo(() => {
     if (!month.data || !activities.data) return {} as Record<number, { hasSchedule?: boolean; recurringIcons?: string[]; isFridayDinner?: boolean }>;
     const out: Record<number, { hasSchedule?: boolean; recurringIcons?: string[]; isFridayDinner?: boolean }> = {};
-    const yr = today.getFullYear();
-    const mo = today.getMonth();
+    const yr = monthYear;
+    const mo = monthIndex;
     const lastDay = new Date(yr, mo + 1, 0).getDate();
 
     for (const ds of month.data.daySchedules) {
@@ -89,20 +92,41 @@ export const PrintCombinedLive = ({ theme, lang = "en", avatarScale = 1 }: Props
       }
     }
     return out;
-  }, [month.data, activities.data, today]);
+  }, [month.data, activities.data, monthYear, monthIndex]);
+
+  const realToday = new Date();
+  const todayN =
+    realToday.getFullYear() === monthYear && realToday.getMonth() === monthIndex
+      ? realToday.getDate()
+      : -1;
+
+  const weekEnd = addDays(weekStart, 6);
+  const navLabel =
+    lang === "he"
+      ? `${weekStart.getDate()} ${HE_MONTHS[weekStart.getMonth()]} — ${weekEnd.getDate()} ${HE_MONTHS[weekEnd.getMonth()]}`
+      : `${format(weekStart, "MMM d")} — ${format(weekEnd, "MMM d")}`;
 
   return (
-    <PrintCombined
-      theme={theme}
-      lang={lang}
-      days={days}
-      monthLabelEn={`${EN_MONTHS[today.getMonth()]} ${today.getFullYear()}`}
-      monthLabelHe={`${HE_MONTHS[today.getMonth()]} ${today.getFullYear()}`}
-      monthYear={today.getFullYear()}
-      monthIndex={today.getMonth()}
-      todayN={today.getDate()}
-      monthEntries={monthEntries}
-      avatarScale={avatarScale}
-    />
+    <>
+      <PrintNav
+        lang={lang}
+        label={navLabel}
+        onPrev={() => setAnchor((a) => addDays(a, -7))}
+        onNext={() => setAnchor((a) => addDays(a, 7))}
+        onToday={() => setAnchor(new Date())}
+      />
+      <PrintCombined
+        theme={theme}
+        lang={lang}
+        days={days}
+        monthLabelEn={`${EN_MONTHS[monthIndex]} ${monthYear}`}
+        monthLabelHe={`${HE_MONTHS[monthIndex]} ${monthYear}`}
+        monthYear={monthYear}
+        monthIndex={monthIndex}
+        todayN={todayN}
+        monthEntries={monthEntries}
+        avatarScale={avatarScale}
+      />
+    </>
   );
 };
