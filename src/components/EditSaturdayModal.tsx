@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { CSSProperties } from "react";
 import type { Lang, Theme } from "../types";
 import type {
@@ -8,6 +8,9 @@ import type {
   DbSaturdaySchedule,
 } from "../lib/db-types";
 import { useUpdateSaturdaySchedule, useUpdateDaySchedule } from "../hooks/useSchedule";
+import { useCreateActivity, useUpdateActivity } from "../hooks/useActivities";
+import { PersonAvatar } from "./PersonAvatar";
+import { buildPersonSlugMap } from "../lib/adapters";
 import { lf } from "../lib/i18n-field";
 
 interface Props {
@@ -28,6 +31,8 @@ interface Props {
 
 interface FormActivity extends DbSaturdayActivity {
   _key: string;
+  /** People for this activity (mirrors activity.associated_person_ids; resolved on save). */
+  person_ids: string[];
 }
 
 interface FormState {
@@ -39,8 +44,13 @@ interface FormState {
 
 const newKey = () => `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
 
-const fromDb = (d: DbSaturdaySchedule | null): FormState => ({
-  activities: (d?.activities || []).map((a) => ({ ...a, _key: newKey() })),
+const sortedKey = (xs: string[]) => [...xs].sort().join("|");
+
+const fromDb = (d: DbSaturdaySchedule | null, dbActivities: DbActivity[]): FormState => ({
+  activities: (d?.activities || []).map((a) => {
+    const act = a.activity_id ? dbActivities.find((x) => x.id === a.activity_id) : undefined;
+    return { ...a, _key: newKey(), person_ids: act?.associated_person_ids ? [...act.associated_person_ids] : [] };
+  }),
   family_dinner_person_id: d?.family_dinner_person_id || "",
   family_dinner_time: d?.family_dinner_time || "",
   notes: d?.notes || "",
@@ -64,16 +74,22 @@ export const EditSaturdayModal = ({
   const t = theme;
   const tx = (en: string, he: string) => (lang === "he" ? he : en);
 
-  const [form, setForm] = useState<FormState>(() => fromDb(current));
+  const [form, setForm] = useState<FormState>(() => fromDb(current, dbActivities));
   const [saveError, setSaveError] = useState<string | null>(null);
   const update = useUpdateSaturdaySchedule();
   const updateDay = useUpdateDaySchedule();
+  const create = useCreateActivity();
+  const updateActivity = useUpdateActivity();
+  const peopleSlugMap = useMemo(() => buildPersonSlugMap(dbPeople), [dbPeople]);
 
   useEffect(() => {
     if (open) {
-      setForm(fromDb(current));
+      setForm(fromDb(current, dbActivities));
       setSaveError(null);
     }
+    // dbActivities intentionally omitted from deps: re-running on a background
+    // activities refetch would wipe in-progress people edits (cf. EditDayModal).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, current]);
 
   useEffect(() => {
@@ -99,28 +115,76 @@ export const EditSaturdayModal = ({
   const addActivity = () =>
     setForm((f) => ({
       ...f,
-      activities: [...f.activities, { _key: newKey(), activity_id: "", time: "", custom_name: "" }],
+      activities: [...f.activities, { _key: newKey(), activity_id: "", time: "", custom_name: "", person_ids: [] }],
+    }));
+
+  const togglePerson = (key: string, personId: string) =>
+    setForm((f) => ({
+      ...f,
+      activities: f.activities.map((a) =>
+        a._key === key
+          ? {
+              ...a,
+              person_ids: (a.person_ids || []).includes(personId)
+                ? (a.person_ids || []).filter((x) => x !== personId)
+                : [...(a.person_ids || []), personId],
+            }
+          : a
+      ),
     }));
 
   const handleSave = async () => {
     setSaveError(null);
-    const cleanActivities: DbSaturdayActivity[] = form.activities
-      .filter((a) => a.activity_id || (a.custom_name && a.custom_name.trim()))
-      .map(({ _key: _ignore, ...rest }) => ({
-        activity_id: rest.activity_id,
-        time: rest.time || undefined,
-        custom_name: rest.custom_name || undefined,
-        custom_name_he: rest.custom_name_he || undefined,
-      }));
-
-    const payload: Partial<DbSaturdaySchedule> & { date: string } = {
-      date: dateIso,
-      activities: cleanActivities,
-      family_dinner_person_id: form.family_dinner_person_id || null,
-      family_dinner_time: form.family_dinner_time || null,
-      notes: form.notes || null,
-    };
     try {
+      // Resolve each row's people onto an activity row (find-or-create for
+      // free-text custom names), mirroring the after-gan picker in EditDayModal.
+      const cleanActivities: DbSaturdayActivity[] = [];
+      for (const a of form.activities) {
+        const custom = (a.custom_name || "").trim();
+        if (!a.activity_id && !custom) continue;
+        let activity_id = a.activity_id;
+        const wantPeople = a.person_ids || [];
+        if (wantPeople.length > 0) {
+          let resolved: DbActivity | undefined = activity_id
+            ? dbActivities.find((x) => x.id === activity_id)
+            : undefined;
+          if (!activity_id && custom) {
+            const existing = dbActivities.find((x) => x.name.trim().toLowerCase() === custom.toLowerCase());
+            if (existing) {
+              activity_id = existing.id;
+              resolved = existing;
+            } else {
+              const created = (await create.mutateAsync({
+                name: custom,
+                is_recurring: false,
+                associated_person_ids: wantPeople,
+              })) as DbActivity;
+              activity_id = created.id;
+              resolved = created;
+            }
+          }
+          if (activity_id) {
+            const currentPeople = resolved?.associated_person_ids ?? [];
+            if (sortedKey(currentPeople) !== sortedKey(wantPeople)) {
+              await updateActivity.mutateAsync({ id: activity_id, associated_person_ids: wantPeople });
+            }
+          }
+        }
+        cleanActivities.push({
+          activity_id: activity_id || "",
+          time: a.time || undefined,
+          custom_name: a.custom_name || undefined,
+          custom_name_he: a.custom_name_he || undefined,
+        });
+      }
+
+      const payload: Partial<DbSaturdaySchedule> & { date: string } = {
+        date: dateIso,
+        activities: cleanActivities,
+        family_dinner_person_id: form.family_dinner_person_id || null,
+        family_dinner_time: form.family_dinner_time || null,
+        notes: form.notes || null,
+      };
       await update.mutateAsync(payload);
       onClose();
     } catch (err) {
@@ -370,8 +434,52 @@ export const EditSaturdayModal = ({
                     placeholder={tx("Custom name (optional)", "שם מותאם (לא חובה)")}
                     style={{ ...inputStyle, gridColumn: "1 / span 3", fontSize: 12 }}
                   />
+                  {(a.activity_id || (a.custom_name && a.custom_name.trim())) && (
+                    <div style={{ gridColumn: "1 / span 3" }}>
+                      <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: 1, color: t.inkSoft, fontFamily: t.fontHead, textTransform: "uppercase", marginBottom: 4 }}>
+                        {tx("Who's joining?", "מי מצטרף?")}
+                      </div>
+                      <div style={{ display: "flex", gap: 5, flexWrap: "wrap" }}>
+                        {dbPeople.map((p) => {
+                          const sel = (a.person_ids || []).includes(p.id);
+                          const slug = peopleSlugMap.get(p.id) || p.id;
+                          return (
+                            <button
+                              key={p.id}
+                              type="button"
+                              onClick={() => togglePerson(a._key, p.id)}
+                              title={p.name}
+                              style={{
+                                display: "flex",
+                                alignItems: "center",
+                                gap: 5,
+                                padding: "2px 8px 2px 2px",
+                                borderRadius: 99,
+                                border: sel ? `2px solid ${t.accent}` : `1.5px solid ${t.cardBorder}`,
+                                background: sel ? `${t.accent}22` : t.paper,
+                                color: t.ink,
+                                fontFamily: t.fontHead,
+                                fontSize: 10,
+                                fontWeight: 700,
+                                cursor: "pointer",
+                              }}
+                            >
+                              <PersonAvatar id={slug} size={18} halo={false} theme={t} />
+                              <span>{p.name}</span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
                 </div>
               ))}
+            </div>
+            <div style={{ fontSize: 10, color: t.inkSoft, marginTop: 6, fontStyle: "italic" }}>
+              {tx(
+                "Adding people saves them on the activity (affects every day using it).",
+                "הוספת אנשים נשמרת על הפעילות (משפיע על כל יום שמשתמש בה)."
+              )}
             </div>
           </section>
 
@@ -459,7 +567,7 @@ export const EditSaturdayModal = ({
           </button>
           <button
             onClick={handleSave}
-            disabled={update.isPending}
+            disabled={update.isPending || create.isPending || updateActivity.isPending}
             style={{
               padding: "8px 22px",
               background: t.fridayAccent,
@@ -474,7 +582,7 @@ export const EditSaturdayModal = ({
               opacity: update.isPending ? 0.7 : 1,
             }}
           >
-            {update.isPending ? tx("Saving…", "שומר…") : tx("Save", "שמור")}
+            {update.isPending || create.isPending || updateActivity.isPending ? tx("Saving…", "שומר…") : tx("Save", "שמור")}
           </button>
         </div>
       </div>
