@@ -43,6 +43,8 @@ export interface DbDaySchedule {
   updated_by?: string;
   family_dinner_person_id?: string | null;
   family_dinner_time?: string | null;
+  /** When true for a last-Friday-of-month date, edit/render it as a regular gan day instead of Saturday-style. */
+  last_friday_gan_open?: boolean | null;
 }
 
 export interface DbSaturdayActivity {

@@ -147,7 +147,11 @@ export function adaptWeekToDays(ctx: AdapterContext): Day[] {
       continue;
     }
 
-    if (isFri && fridayIsLast) {
+    // A last Friday is Saturday-style (no-gan) by default, UNLESS the user has
+    // explicitly flipped it to a regular gan day (last_friday_gan_open). In that
+    // case we fall through to the normal weekday rendering below, sourcing from
+    // the day_schedules row instead of saturday_schedules.
+    if (isFri && fridayIsLast && !weekData.days[i]?.last_friday_gan_open) {
       const lastFri = weekData.lastFriday;
       const activities: Activity[] =
         lastFri?.activities

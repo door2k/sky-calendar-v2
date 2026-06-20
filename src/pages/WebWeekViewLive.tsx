@@ -268,8 +268,11 @@ export const WebWeekViewLive = ({ theme, lang = "en", avatarScale = 1, avatarHal
     [people.data, activities.data, week.data, weekStart, chatMessages, updateDay, updateSat]
   );
 
-  const isSaturdayStyle =
-    openIdx === 6 || (openIdx === 5 && !!week.data?.fridayIsLastOfMonth);
+  const isLastFridayOfMonth = openIdx === 5 && !!week.data?.fridayIsLastOfMonth;
+  // A last Friday flipped to "gan open" edits as a regular weekday, not Saturday-style.
+  const lastFridayGanOpen =
+    isLastFridayOfMonth && week.data?.days?.[5]?.last_friday_gan_open === true;
+  const isSaturdayStyle = openIdx === 6 || (isLastFridayOfMonth && !lastFridayGanOpen);
 
   const modalCtx = useMemo(() => {
     if (openIdx === null || !week.data || !people.data || !activities.data) return null;
@@ -340,6 +343,7 @@ export const WebWeekViewLive = ({ theme, lang = "en", avatarScale = 1, avatarHal
           current={modalCtx.currentDay}
           dbPeople={modalCtx.dbPeople}
           dbActivities={modalCtx.dbActivities}
+          isLastFriday={isLastFridayOfMonth}
           theme={theme}
           lang={lang}
         />

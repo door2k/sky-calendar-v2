@@ -19,6 +19,8 @@ interface Props {
   current: DbDaySchedule | null;
   dbPeople: DbPerson[];
   dbActivities: DbActivity[];
+  /** True when this day is the last Friday of the month (shown the gan-open override toggle). */
+  isLastFriday?: boolean;
   theme: Theme;
   lang: Lang;
 }
@@ -90,6 +92,7 @@ export const EditDayModal = ({
   current,
   dbPeople,
   dbActivities,
+  isLastFriday = false,
   theme,
   lang,
 }: Props) => {
@@ -191,6 +194,20 @@ export const EditDayModal = ({
       savedFlashRef.current = window.setTimeout(() => {
         setStatus((s) => (s === "saved" ? "idle" : s));
       }, 1500);
+    } catch (err) {
+      setStatus("error");
+      setSaveError(err instanceof Error ? err.message : String(err));
+    }
+  };
+
+  // Flip the last-Friday gan-open override. Setting it false reverts the day to
+  // the Saturday-style editor; the parent re-routes once the schedule refetches.
+  const setLastFridayGanOpen = async (open: boolean) => {
+    if (saveTimerRef.current) window.clearTimeout(saveTimerRef.current);
+    setStatus("saving");
+    setSaveError(null);
+    try {
+      await update.mutateAsync({ date: dateIso, last_friday_gan_open: open });
     } catch (err) {
       setStatus("error");
       setSaveError(err instanceof Error ? err.message : String(err));
@@ -386,6 +403,27 @@ export const EditDayModal = ({
         </div>
 
         <div style={{ padding: 18, display: "flex", flexDirection: "column", gap: 12 }}>
+          {isLastFriday && (
+            <section style={{ ...stickerCard, background: `${t.fridayAccent}11`, borderColor: t.fridayAccent }}>
+              <label style={{ display: "flex", alignItems: "center", gap: 8, cursor: update.isPending ? "default" : "pointer", fontWeight: 600 }}>
+                <input
+                  type="checkbox"
+                  checked
+                  disabled={update.isPending}
+                  onChange={(e) => { if (!e.target.checked) void setLastFridayGanOpen(false); }}
+                />
+                <span style={{ fontFamily: t.fontHead, fontSize: 14, color: t.ink }}>
+                  {tx("Gan is open this Friday", "הגן פתוח בשישי הזה")}
+                </span>
+              </label>
+              <div style={{ fontSize: 10.5, color: t.inkSoft, marginTop: 6, fontStyle: "italic" }}>
+                {tx(
+                  "Last Friday of the month — normally no gan. Uncheck to switch back to the weekend-style editor.",
+                  "שישי אחרון בחודש — בדרך כלל אין גן. בטל סימון כדי לחזור לעריכת סוף-שבוע."
+                )}
+              </div>
+            </section>
+          )}
           <section
             style={{
               ...stickerCard,

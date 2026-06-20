@@ -7,7 +7,7 @@ import type {
   DbSaturdayActivity,
   DbSaturdaySchedule,
 } from "../lib/db-types";
-import { useUpdateSaturdaySchedule } from "../hooks/useSchedule";
+import { useUpdateSaturdaySchedule, useUpdateDaySchedule } from "../hooks/useSchedule";
 import { lf } from "../lib/i18n-field";
 
 interface Props {
@@ -67,6 +67,7 @@ export const EditSaturdayModal = ({
   const [form, setForm] = useState<FormState>(() => fromDb(current));
   const [saveError, setSaveError] = useState<string | null>(null);
   const update = useUpdateSaturdaySchedule();
+  const updateDay = useUpdateDaySchedule();
 
   useEffect(() => {
     if (open) {
@@ -122,6 +123,25 @@ export const EditSaturdayModal = ({
     try {
       await update.mutateAsync(payload);
       onClose();
+    } catch (err) {
+      setSaveError(err instanceof Error ? err.message : String(err));
+    }
+  };
+
+  // Flip a last Friday into a regular gan day. Sets the override flag on the
+  // day_schedules row (carrying the dinner host over) — the parent re-routes to
+  // the regular-day editor once the schedule refetches. The Saturday-style
+  // activities stay on saturday_schedules, dormant, and return if flipped back.
+  const handleOpenGan = async () => {
+    setSaveError(null);
+    try {
+      await updateDay.mutateAsync({
+        date: dateIso,
+        last_friday_gan_open: true,
+        is_no_gan: false,
+        family_dinner_person_id: form.family_dinner_person_id || null,
+        family_dinner_time: form.family_dinner_time || null,
+      });
     } catch (err) {
       setSaveError(err instanceof Error ? err.message : String(err));
     }
@@ -243,6 +263,27 @@ export const EditSaturdayModal = ({
         </div>
 
         <div style={{ padding: 18, display: "flex", flexDirection: "column", gap: 12 }}>
+          {variant === "last-friday" && (
+            <section style={{ ...stickerCard, background: `${t.fridayAccent}11`, borderColor: t.fridayAccent }}>
+              <label style={{ display: "flex", alignItems: "center", gap: 8, cursor: update.isPending || updateDay.isPending ? "default" : "pointer", fontWeight: 600 }}>
+                <input
+                  type="checkbox"
+                  checked={false}
+                  disabled={update.isPending || updateDay.isPending}
+                  onChange={(e) => { if (e.target.checked) void handleOpenGan(); }}
+                />
+                <span style={{ fontFamily: t.fontHead, fontSize: 14, color: t.ink }}>
+                  {tx("Gan is open this Friday", "הגן פתוח בשישי הזה")}
+                </span>
+              </label>
+              <div style={{ fontSize: 10.5, color: t.inkSoft, marginTop: 6, fontStyle: "italic" }}>
+                {tx(
+                  "By default the last Friday is no-gan. Check this to edit it as a regular gan day instead.",
+                  "כברירת מחדל שישי אחרון הוא ללא גן. סמן כדי לערוך אותו כיום גן רגיל."
+                )}
+              </div>
+            </section>
+          )}
           <section style={stickerCard}>
             <div style={{ ...sectionLabel, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
               <span>{tx("Activities", "פעילויות")}</span>

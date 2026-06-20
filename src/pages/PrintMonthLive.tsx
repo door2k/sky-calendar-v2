@@ -51,8 +51,13 @@ export const PrintMonthLive = ({ theme, lang = "en", avatarScale = 1 }: Props) =
       return slugs.length > 0 ? slugs : undefined;
     };
 
+    // Last Fridays flipped to a regular gan day keep their content on
+    // day_schedules, so skip the (dormant) saturday_schedules row for that date.
+    const ganOpenDays = new Set<number>();
+
     for (const ds of month.data.daySchedules) {
       const n = parseInt(ds.date.slice(8, 10), 10);
+      if (ds.last_friday_gan_open) ganOpenDays.add(n);
       const entry: MonthDayEntry = out[n] || { events: [] };
       if (!entry.events) entry.events = [];
       if (ds.dropoff_person_id) entry.dropoffSlug = slugMap.get(ds.dropoff_person_id);
@@ -87,6 +92,7 @@ export const PrintMonthLive = ({ theme, lang = "en", avatarScale = 1 }: Props) =
 
     for (const ss of month.data.saturdaySchedules) {
       const n = parseInt(ss.date.slice(8, 10), 10);
+      if (ganOpenDays.has(n)) continue;
       const entry: MonthDayEntry = out[n] || { events: [] };
       if (!entry.events) entry.events = [];
       for (const sa of ss.activities || []) {

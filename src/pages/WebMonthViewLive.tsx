@@ -78,9 +78,13 @@ export const WebMonthViewLive = ({ theme, lang = "en" }: Props) => {
     const m: Record<number, { person?: string; icons: string[]; gan?: string; ganHe?: string }> = {};
     if (!sched.data || !activities.data) return m;
     const actMap = new Map(activities.data.map((a) => [a.id, a]));
+    // Last Fridays flipped to a regular gan day keep their content on
+    // day_schedules, so skip the (dormant) saturday_schedules row for that date.
+    const ganOpenDays = new Set<number>();
 
     for (const d of sched.data.daySchedules) {
       const day = parseInt(d.date.split("-")[2], 10);
+      if (d.last_friday_gan_open) ganOpenDays.add(day);
       if (!m[day]) m[day] = { icons: [] };
       const personId = d.dropoff_person_id || d.pickup_person_id;
       if (personId && !m[day].person) m[day].person = slugMap.get(personId);
@@ -95,6 +99,7 @@ export const WebMonthViewLive = ({ theme, lang = "en" }: Props) => {
     }
     for (const s of sched.data.saturdaySchedules) {
       const day = parseInt(s.date.split("-")[2], 10);
+      if (ganOpenDays.has(day)) continue;
       if (!m[day]) m[day] = { icons: [] };
       for (const sa of s.activities || []) {
         const a = actMap.get(sa.activity_id);
