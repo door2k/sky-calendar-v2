@@ -81,6 +81,15 @@ const PrintActivity = ({ t, a, lang }: { t: Theme; a: Day["after"] | NonNullable
         <div style={{ fontFamily: t.fontHead, fontWeight: 700, fontSize: 13, color: t.ink }}>{tx(a.name, a.nameHe)}</div>
         <div style={{ fontSize: 9.5, color: t.inkSoft, fontWeight: 600 }}>{a.at} · {a.where}</div>
       </div>
+      {a.withSlugs && a.withSlugs.length > 0 && (
+        <div style={{ display: "flex", alignItems: "center", marginInlineStart: 4, flexShrink: 0 }}>
+          {a.withSlugs.slice(0, 3).map((slug, i) => (
+            <div key={slug + i} style={{ marginInlineStart: i === 0 ? 0 : -7 }}>
+              <PersonAvatar id={slug} size={22} halo={false} theme={t} />
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 };

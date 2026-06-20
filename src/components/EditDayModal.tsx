@@ -110,11 +110,23 @@ export const EditDayModal = ({
   const latestFormRef = useRef<FormState>(form);
   latestFormRef.current = form;
 
+  // Initialize the form once per open. Do NOT re-sync to `baseline` on every
+  // baseline change: each auto-save invalidates the activities/schedule queries,
+  // which recomputes `baseline`. Re-syncing here would clobber edits the user
+  // made after a save fired (e.g. picking "Who's joining?" people right after the
+  // activity auto-created) — so those edits never persist. The modal remounts per
+  // open, so a one-shot init is the correct behaviour.
+  const initializedRef = useRef(false);
   useEffect(() => {
-    if (open) {
+    if (!open) {
+      initializedRef.current = false;
+      return;
+    }
+    if (!initializedRef.current) {
       setForm(baseline);
       setStatus("idle");
       setSaveError(null);
+      initializedRef.current = true;
     }
   }, [open, baseline]);
 
